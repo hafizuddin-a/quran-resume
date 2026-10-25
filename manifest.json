@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Quran Resume",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "homepage_url": "https://github.com/hafizuddin-a/quran-resume",
   "description": "Opens quran.com as a pinned, active tab on browser startup, at the verse where you last stopped reading.",
   "icons": {
@@ -10,12 +10,22 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "idle", "alarms"],
-  "host_permissions": ["https://quran.com/*"],
+  "permissions": [
+    "storage",
+    "idle",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://quran.com/*"
+  ],
   "web_accessible_resources": [
     {
-      "resources": ["icons/icon32.png"],
-      "matches": ["https://quran.com/*"]
+      "resources": [
+        "icons/icon32.png"
+      ],
+      "matches": [
+        "https://quran.com/*"
+      ]
     }
   ],
   "options_ui": {
@@ -27,16 +37,21 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://quran.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://quran.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_title": "Open Quran at last verse",
+    "default_title": "Quran Resume",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png"
-    }
+    },
+    "default_popup": "popup.html"
   }
 }

@@ -35,4 +35,6 @@ Questions: open an issue on the project's GitHub repository.
 
 The settings (the on/off switch for the once-a-day return, and whether to show its prompt) are on the extension's options page.
 
-_Last updated: 25 October 2026_
+The toolbar menu has a "Talk to the developer" link that opens the developer's Instagram page in a new tab. It is a plain link; the extension sends nothing.
+
+_Last updated: 26 October 2026_

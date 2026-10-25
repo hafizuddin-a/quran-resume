@@ -144,8 +144,7 @@ chrome.runtime.onStartup.addListener(async () => {
   await openQuran();
 });
 
-// Clicking the toolbar icon runs the same flow, handy for testing without
-// restarting the browser.
-chrome.action.onClicked.addListener(() => {
-  openQuran();
+// The toolbar popup asks us to open the Quran at the last verse.
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg && msg.type === "qr-open") openQuran();
 });

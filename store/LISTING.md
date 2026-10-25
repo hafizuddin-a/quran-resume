@@ -26,7 +26,7 @@ How it works:
 - If your browser restores your old tabs on startup, Quran Resume reuses an existing
   quran.com tab rather than opening a duplicate, and keeps focus on it.
 - Once a day, the first time your computer wakes or is unlocked with the browser open, the Quran tab comes to the front and a small prompt offers a switch to turn this off, or to stop showing the prompt. It is on by default.
-- Click the toolbar icon at any time to jump back to your last verse.
+- Click the toolbar icon for a menu: your last chapter and verse, an Open Quran button, the once-a-day switch, and a link to message the developer.
 
 Private by design:
 - Your last verse is stored only on your device, in your browser's extension storage.

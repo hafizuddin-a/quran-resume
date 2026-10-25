@@ -148,8 +148,8 @@
           <div class="name">Quran Resume</div>
           <button class="close" aria-label="Close"><svg viewBox="0 0 16 16"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg></button>
         </div>
-        <p>Opened your Quran because your computer woke up. This happens once a day.</p>
-        <label class="row"><span>Open the Quran once a day</span>
+        <p>Opened after your computer woke from sleep, once a day. It also opens whenever Chrome starts.</p>
+        <label class="row"><span>Open once a day after sleep</span>
           <span class="toggle"><input type="checkbox"><span class="track"></span><span class="knob"></span></span></label>
         <div class="actions"><button class="link" id="never">Don't ask again</button></div>
       </div>`;

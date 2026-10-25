@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Quran Resume</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon32.png" alt="">
+    <h1>Quran Resume</h1>
+  </header>
+
+  <section class="last">
+    <div class="label">Last stopped at</div>
+    <div class="verse" id="verse">Not saved yet</div>
+    <div class="sub" id="verse-sub">Start reading on quran.com and your place is saved automatically.</div>
+    <button class="primary" id="open">Open Quran</button>
+  </section>
+
+  <hr>
+
+  <section>
+    <label class="row">
+      <span>
+        Open the Quran once a day after sleep
+        <small>The first time each day your computer wakes from sleep or is unlocked with Chrome open.</small>
+      </span>
+      <span class="toggle"><input type="checkbox" id="wake"><span class="track"></span><span class="knob"></span></span>
+    </label>
+    <p class="note">The Quran also opens every time you close and reopen Chrome.</p>
+  </section>
+
+  <hr>
+
+  <button class="item" id="dev">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z" fill="currentColor"/></svg>
+    Talk to the developer
+  </button>
+  <script src="surahs.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

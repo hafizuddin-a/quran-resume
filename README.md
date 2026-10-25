@@ -72,7 +72,7 @@ Prefer to read the code first? It is all in this repository, and there is no bui
 | Read on quran.com | Your place is saved as you scroll (once you've scrolled, clicked or pressed a key) |
 | Start your browser | A pinned quran.com tab opens at your last verse and is brought to the front |
 | Come back after a break | Once a day, the first time your computer wakes from sleep or is unlocked with the browser open, the Quran tab comes to the front and a small prompt lets you switch this off or stop showing the prompt. It is on by default; the switch is also in the extension's options (right-click the icon, then Options) |
-| Click the toolbar icon | Opens or focuses the quran.com tab at your last verse, without restarting |
+| Click the toolbar icon | A menu shows the chapter and verse you last stopped at, an **Open Quran** button, the once-a-day switch, and a link to talk to the developer |
 
 The first time, before anything has been saved, it opens Al-Fatihah.
 
@@ -117,13 +117,14 @@ with **Load unpacked**.
 ./publish.sh    # runs release.sh, then creates the GitHub release (needs the gh CLI, signed in)
 ```
 
-`./publish.sh` uses [release-notes/v1.1.1.md](release-notes/v1.1.1.md) (the file named after the tag) for the release
+`./publish.sh` uses [release-notes/v1.2.0.md](release-notes/v1.2.0.md) (the file named after the tag) for the release
 text if it exists. The version number comes from [manifest.json](manifest.json).
 
 | File | What it does |
 |------|--------------|
 | [manifest.json](manifest.json) | Extension description, permissions and icons |
 | [background.js](background.js) | Opens and focuses the Quran tab on startup, on a toolbar click, and once a day when you return from a break |
+| [popup.html](popup.html), [popup.css](popup.css), [popup.js](popup.js), [surahs.js](surahs.js) | The toolbar menu: last verse, once-a-day switch, link to the developer |
 | [options.html](options.html), [options.js](options.js) | The on/off switch for the return-from-break behaviour |
 | [content.js](content.js) | Runs on quran.com and saves the verse you are on |
 | [icons](icons) | The logo as SVG and the PNG sizes the browser needs |
