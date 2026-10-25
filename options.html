@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Quran Resume options</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; margin: 16px; min-width: 300px; color: #1b2a25; }
+    label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+    input { margin-top: 3px; }
+    small { color: #5d6b66; display: block; margin-top: 2px; }
+    @media (prefers-color-scheme: dark) { body { background: #202124; color: #e8eaed; } small { color: #9aa0a6; } }
+  </style>
+</head>
+<body>
+  <label>
+    <input type="checkbox" id="wake">
+    <span>Open the Quran when I come back after a break
+      <small>Once per day: the first time you return after your laptop sleeps or you are away 15+ minutes, the Quran tab comes to the front.</small>
+    </span>
+  </label>
+  <script src="options.js"></script>
+</body>
+</html>

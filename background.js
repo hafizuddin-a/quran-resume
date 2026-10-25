@@ -64,8 +64,63 @@ async function openQuran() {
   }
 }
 
+// ---- Once-a-day return to the Quran after sleep or a long break ----
+//
+// The first time you come back after a break (laptop lid opened, screen unlocked,
+// or simply 15+ minutes away) on a calendar day, bring the Quran tab to the front.
+// Later returns that day are left alone. Can be switched off on the options page.
+
+const AWAY_SECONDS = 15 * 60; // how long counts as "away"
+const TICK_ALARM = "qr-tick";
+
+function todayKey() {
+  const d = new Date(); // local calendar day, not a rolling 24 hours
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+async function markToday() {
+  await chrome.storage.local.set({ lastOpenDay: todayKey() });
+}
+
+async function focusQuranOnce() {
+  const { wakeEnabled = true, lastOpenDay } = await chrome.storage.local.get(["wakeEnabled", "lastOpenDay"]);
+  if (!wakeEnabled || lastOpenDay === todayKey()) return;
+  await markToday();
+  const existing = await chrome.tabs.query({ url: QURAN_MATCH });
+  if (existing.length > 0) {
+    // Keep the tab as it is (it already shows your place), just bring it forward.
+    await activate(existing[0].id);
+  } else {
+    await openQuran();
+  }
+}
+
+function setUpWakeDetection() {
+  chrome.idle.setDetectionInterval(AWAY_SECONDS);
+  chrome.alarms.create(TICK_ALARM, { periodInMinutes: 1 });
+}
+
+// Screen unlock / back from idle.
+chrome.idle.onStateChanged.addListener((state) => {
+  if (state === "active") focusQuranOnce();
+});
+
+// Sleep detection that needs no lock screen: the 1-minute timer stops while the
+// laptop sleeps, so a large gap between ticks means we just woke up.
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== TICK_ALARM) return;
+  const { lastTick } = await chrome.storage.local.get("lastTick");
+  const now = Date.now();
+  await chrome.storage.local.set({ lastTick: now });
+  if (lastTick && now - lastTick > AWAY_SECONDS * 1000) focusQuranOnce();
+});
+
+chrome.runtime.onInstalled.addListener(setUpWakeDetection);
+
 chrome.runtime.onStartup.addListener(async () => {
+  setUpWakeDetection();
   await sleep(STARTUP_DELAY_MS);
+  await markToday(); // startup already opened the Quran for today
   await openQuran();
 });
 

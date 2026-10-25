@@ -71,6 +71,7 @@ Prefer to read the code first? It is all in this repository, and there is no bui
 |---------|--------------|
 | Read on quran.com | Your place is saved as you scroll (once you've scrolled, clicked or pressed a key) |
 | Start your browser | A pinned quran.com tab opens at your last verse and is brought to the front |
+| Come back after a break | Once a day, the first time you return after your laptop sleeps (or you are away 15+ minutes), the Quran tab comes to the front. Turn it off in the extension's options (right-click the icon, then Options) |
 | Click the toolbar icon | Opens or focuses the quran.com tab at your last verse, without restarting |
 
 The first time, before anything has been saved, it opens Al-Fatihah.
@@ -93,7 +94,7 @@ The first time, before anything has been saved, it opens Al-Fatihah.
 
 Your last verse (for example `2:9`) and the time it was saved are kept in your browser's local extension storage and
 never leave your device. The extension has no analytics, makes no network requests of its own, loads no remote code,
-and needs no account. Its only permissions are `storage` and access to `https://quran.com/*`. The full policy is in
+and needs no account. Its permissions are `storage`, `idle` and `alarms` (to notice that you are back from a break, nothing more) and access to `https://quran.com/*`. The full policy is in
 [PRIVACY.md](PRIVACY.md).
 
 ## What it can't do
@@ -116,13 +117,14 @@ with **Load unpacked**.
 ./publish.sh    # runs release.sh, then creates the GitHub release (needs the gh CLI, signed in)
 ```
 
-`./publish.sh` uses [release-notes/v1.0.0.md](release-notes/v1.0.0.md) (the file named after the tag) for the release
+`./publish.sh` uses [release-notes/v1.1.0.md](release-notes/v1.1.0.md) (the file named after the tag) for the release
 text if it exists. The version number comes from [manifest.json](manifest.json).
 
 | File | What it does |
 |------|--------------|
 | [manifest.json](manifest.json) | Extension description, permissions and icons |
-| [background.js](background.js) | Opens and focuses the Quran tab on startup and on a toolbar click |
+| [background.js](background.js) | Opens and focuses the Quran tab on startup, on a toolbar click, and once a day when you return from a break |
+| [options.html](options.html), [options.js](options.js) | The on/off switch for the return-from-break behaviour |
 | [content.js](content.js) | Runs on quran.com and saves the verse you are on |
 | [icons](icons) | The logo as SVG and the PNG sizes the browser needs |
 
