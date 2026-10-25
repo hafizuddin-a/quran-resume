@@ -19,3 +19,4 @@ input { width: 90px; }
 .primary { border: 0; border-radius: 20px; padding: 9px 20px; background: var(--accent); color: var(--btn-fg); font: inherit; font-weight: 500; cursor: pointer; }
 .primary:hover { filter: brightness(1.08); }
 .tip { margin-top: 28px; color: var(--muted); font-size: 14px; }
+.signoff { margin: 28px 0 0; color: var(--muted); font-size: 14px; }

@@ -26,13 +26,26 @@ async function savePlace() {
   saved.textContent = `Saved. Your Quran will open at Surah ${SURAH_NAMES[Number(surah.value) - 1]}, verse ${v}.`;
 }
 
-surah.addEventListener("change", () => { verse.value = "1"; savePlace(); });
+// Never allow a verse past the end of the chosen surah, even while typing.
+function capVerse() {
+  const max = SURAH_VERSES[Number(surah.value) - 1];
+  verse.max = String(max);
+  if (verse.value !== "" && Number(verse.value) > max) verse.value = String(max);
+}
+verse.addEventListener("input", capVerse);
+verse.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowUp" && Number(verse.value) >= SURAH_VERSES[Number(surah.value) - 1]) e.preventDefault();
+});
+
+surah.addEventListener("change", () => { verse.value = "1"; capVerse(); savePlace(); });
 verse.addEventListener("change", savePlace);
 
 document.getElementById("open").addEventListener("click", async () => {
   await savePlace();
   await chrome.runtime.sendMessage({ type: "qr-open" });
 });
+
+capVerse(); // set the limit straight away, before the saved place loads
 
 // Start from whatever is already saved (nothing on a fresh install: Al-Fatihah).
 chrome.storage.local.get("verseKey").then(({ verseKey }) => {
