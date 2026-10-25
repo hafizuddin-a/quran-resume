@@ -117,7 +117,7 @@ with **Load unpacked**.
 ./publish.sh    # runs release.sh, then creates the GitHub release (needs the gh CLI, signed in)
 ```
 
-`./publish.sh` uses [release-notes/v1.2.0.md](release-notes/v1.2.0.md) (the file named after the tag) for the release
+`./publish.sh` uses [release-notes/v1.2.1.md](release-notes/v1.2.1.md) (the file named after the tag) for the release
 text if it exists. The version number comes from [manifest.json](manifest.json).
 
 | File | What it does |
