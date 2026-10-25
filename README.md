@@ -36,15 +36,17 @@ Works in Chrome and other Chromium browsers (Edge, Brave, Ecosia and so on).
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="store/screenshots/01-toolbar-menu.png" alt="The toolbar menu showing the last verse and three switches" width="400"><br>
-      <sub>The toolbar menu.</sub>
+      <img src="store/screenshots/01-opens-at-startup.png" alt="The browser opening to quran.com in a pinned tab at the last verse" width="400"><br>
+      <sub>Opens in a pinned tab, in front, at your verse.</sub>
     </td>
     <td align="center" width="50%">
-      <img src="store/screenshots/02-wake-prompt.png" alt="The prompt shown after the computer wakes" width="400"><br>
-      <sub>The prompt after your computer wakes.</sub>
+      <img src="store/screenshots/02-saved-as-you-read.png" alt="The verse you are on being saved as you scroll" width="400"><br>
+      <sub>Saved as you scroll.</sub>
     </td>
   </tr>
 </table>
+
+<p align="center"><sub>The pages are drawn with placeholder lines instead of verses. The menus and prompts in <a href="store/screenshots">store/screenshots</a> are the real thing.</sub></p>
 
 ## Install
 
