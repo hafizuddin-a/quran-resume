@@ -26,9 +26,14 @@ async function render() {
   $("startup").checked = startupEnabled;
   $("sync").checked = syncEnabled;
 
-  const cmds = await chrome.commands.getAll();
-  const open = cmds.find((c) => c.name === "open-quran");
-  $("shortcut").textContent = open && open.shortcut ? `Shortcut ${prettyShortcut(open.shortcut)}` : "Set a shortcut";
+  // Some Chromium browsers (Ecosia, for one) do not offer the shortcuts API: hide the hint there.
+  if (chrome.commands && chrome.commands.getAll) {
+    const cmds = await chrome.commands.getAll();
+    const open = cmds.find((c) => c.name === "open-quran");
+    $("shortcut").textContent = open && open.shortcut ? `Shortcut ${prettyShortcut(open.shortcut)}` : "Set a shortcut";
+  } else {
+    $("shortcut").hidden = true;
+  }
 
   const m = /^(\d{1,3}):(\d{1,3})$/.exec(verseKey || "");
   if (m && SURAH_NAMES[Number(m[1]) - 1]) {

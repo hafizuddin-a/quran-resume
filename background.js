@@ -208,6 +208,8 @@ chrome.runtime.onMessage.addListener((msg) => {
 });
 
 // Keyboard shortcut (default Alt+Shift+Q, changeable at chrome://extensions/shortcuts).
-chrome.commands.onCommand.addListener((command) => {
-  if (command === "open-quran") openQuran();
-});
+if (chrome.commands && chrome.commands.onCommand) {
+  chrome.commands.onCommand.addListener((command) => {
+    if (command === "open-quran") openQuran();
+  });
+}
