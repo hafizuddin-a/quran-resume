@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Quran Resume",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "homepage_url": "https://github.com/hafizuddin-a/quran-resume",
   "description": "Opens quran.com as a pinned, active tab on browser startup, at the verse where you last stopped reading.",
   "icons": {
@@ -12,6 +12,12 @@
   },
   "permissions": ["storage", "idle", "alarms"],
   "host_permissions": ["https://quran.com/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/icon32.png"],
+      "matches": ["https://quran.com/*"]
+    }
+  ],
   "options_ui": {
     "page": "options.html",
     "open_in_tab": false

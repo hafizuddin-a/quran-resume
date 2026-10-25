@@ -92,3 +92,77 @@
     save();
   });
 })();
+
+// Prompt shown by the extension after its once-a-day return to the Quran, with a
+// switch to turn that behaviour off.
+(() => {
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg && msg.type === "qr-wake-prompt") showPrompt();
+  });
+
+  async function showPrompt() {
+    if (document.getElementById("quran-resume-prompt")) return;
+    const { wakeEnabled = true } = await chrome.storage.local.get("wakeEnabled");
+
+    const host = document.createElement("div");
+    host.id = "quran-resume-prompt";
+    host.style.cssText = "position:fixed;top:8px;right:16px;z-index:2147483647;";
+    const root = host.attachShadow({ mode: "open" });
+    const icon = chrome.runtime.getURL("icons/icon32.png");
+    root.innerHTML = `
+      <style>
+        :host { all: initial; }
+        .card { box-sizing: border-box; width: 320px; padding: 16px 20px 12px; border-radius: 12px;
+                font: 13px/20px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+                background: #fff; color: #1f1f1f; box-shadow: 0 0 0 1px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.28); }
+        .head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .head img { width: 20px; height: 20px; border-radius: 4px; }
+        .name { flex: 1; font-size: 15px; font-weight: 500; line-height: 22px; }
+        .close { all: unset; cursor: pointer; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; color: #444746; }
+        .close:hover { background: rgba(0,0,0,.08); }
+        .close svg { width: 16px; height: 16px; }
+        p { margin: 0 0 14px; color: #444746; }
+        .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+        .toggle { position: relative; width: 34px; height: 20px; flex: none; }
+        .toggle input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+        .track { position: absolute; left: 0; right: 0; top: 3px; height: 14px; border-radius: 7px; background: #c4c7c5; transition: background .15s; }
+        .knob { position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; background: #747775;
+                box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .15s, background .15s; }
+        input:checked ~ .track { background: #a8c7fa; }
+        input:checked ~ .knob { background: #0b57d0; transform: translateX(14px); }
+        input:focus-visible ~ .knob { outline: 2px solid #0b57d0; outline-offset: 2px; }
+        .actions { display: flex; justify-content: flex-end; margin: 8px -8px 0 0; }
+        .link { all: unset; cursor: pointer; padding: 6px 12px; border-radius: 16px; color: #0b57d0; font-weight: 500; }
+        .link:hover { background: rgba(11,87,208,.08); }
+        @media (prefers-color-scheme: dark) {
+          .card { background: #2d2e30; color: #e3e3e3; box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 4px 16px rgba(0,0,0,.6); }
+          p { color: #c4c7c5; } .close { color: #c4c7c5; } .close:hover { background: rgba(255,255,255,.12); }
+          .track { background: #5f6368; } .knob { background: #9aa0a6; }
+          input:checked ~ .track { background: #0842a0; } input:checked ~ .knob { background: #a8c7fa; }
+          .link { color: #a8c7fa; } .link:hover { background: rgba(168,199,250,.12); }
+        }
+      </style>
+      <div class="card" role="dialog" aria-label="Quran Resume">
+        <div class="head">
+          <img src="${icon}" alt="">
+          <div class="name">Quran Resume</div>
+          <button class="close" aria-label="Close"><svg viewBox="0 0 16 16"><path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg></button>
+        </div>
+        <p>Opened your Quran because your computer woke up. This happens once a day.</p>
+        <label class="row"><span>Open the Quran once a day</span>
+          <span class="toggle"><input type="checkbox"><span class="track"></span><span class="knob"></span></span></label>
+        <div class="actions"><button class="link" id="never">Don't ask again</button></div>
+      </div>`;
+    const box = root.querySelector("input");
+    box.checked = wakeEnabled;
+    box.addEventListener("change", () => chrome.storage.local.set({ wakeEnabled: box.checked }));
+    root.querySelector(".close").addEventListener("click", () => host.remove());
+    // Keep the once-a-day behaviour as it is, but stop showing this prompt.
+    root.getElementById("never").addEventListener("click", () => {
+      chrome.storage.local.set({ wakePromptHidden: true });
+      host.remove();
+    });
+    (document.body || document.documentElement).appendChild(host);
+    setTimeout(() => host.remove(), 20000);
+  }
+})();

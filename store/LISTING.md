@@ -25,7 +25,7 @@ How it works:
 - It opens the whole surah at that verse, so you can keep reading in either direction.
 - If your browser restores your old tabs on startup, Quran Resume reuses an existing
   quran.com tab rather than opening a duplicate, and keeps focus on it.
-- Once a day, the first time you return after your laptop sleeps or you are away for a while, the Quran tab comes to the front. You can switch this off in the options.
+- Once a day, the first time your computer wakes or is unlocked with the browser open, the Quran tab comes to the front and a small prompt offers a switch to turn this off, or to stop showing the prompt. It is on by default.
 - Click the toolbar icon at any time to jump back to your last verse.
 
 Private by design:
@@ -46,7 +46,7 @@ Stores the last-read verse (for example "2:9") locally so it can be restored on 
 next browser startup.
 
 **idle**
-Detects when the computer is unlocked or returns from being idle, so the Quran tab can be brought forward once a day. No idle data is stored or sent.
+Detects when the screen is unlocked, so the Quran tab can be brought forward once a day. No idle data is stored or sent.
 
 **alarms**
 A one-minute timer. A large gap between ticks shows the computer was asleep, which covers sleep without a lock screen. Used only for the same once-a-day return.

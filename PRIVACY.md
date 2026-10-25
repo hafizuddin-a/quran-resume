@@ -13,9 +13,9 @@ storage (`chrome.storage.local`) on your own device. It is never sent anywhere.
 - **quran.com pages:** a content script reads which verse is near the top of the
   screen so it can remember your place. It does not read your account, your
   notes, bookmarks, or anything else on the page.
-- **Idle state and a timer:** it checks whether the computer was asleep, locked or
-  idle for 15+ minutes so it can bring the Quran tab forward once a day. This is
-  used only for that, never stored beyond today's date, and never sent anywhere.
+- **Unlock and sleep detection:** it notices when the screen is unlocked or the
+  computer wakes from sleep, so it can bring the Quran tab forward once a day. Only
+  the date of the last time it did so is stored. Nothing is sent anywhere.
 - **Browser tabs:** on startup it looks for an open quran.com tab and opens or
   focuses one. It does not read or record any other tab.
 
@@ -33,6 +33,6 @@ Remove the extension at any time and its stored data is deleted with it.
 
 Questions: open an issue on the project's GitHub repository.
 
-The one setting (the on/off switch for the return-from-break behaviour) is on the extension's options page.
+The settings (the on/off switch for the once-a-day return, and whether to show its prompt) are on the extension's options page.
 
 _Last updated: 25 October 2026_

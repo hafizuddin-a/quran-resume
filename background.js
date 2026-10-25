@@ -64,13 +64,14 @@ async function openQuran() {
   }
 }
 
-// ---- Once-a-day return to the Quran after sleep or a long break ----
+// ---- Once-a-day return to the Quran after the computer wakes ----
 //
-// The first time you come back after a break (laptop lid opened, screen unlocked,
-// or simply 15+ minutes away) on a calendar day, bring the Quran tab to the front.
-// Later returns that day are left alone. Can be switched off on the options page.
+// The first time each calendar day that the computer wakes from sleep or is
+// unlocked while the browser is open, bring the Quran tab to the front and show a
+// small prompt on it with a switch to turn this off. Later wakes that day are left
+// alone. On by default; also switchable on the options page.
 
-const AWAY_SECONDS = 15 * 60; // how long counts as "away"
+const SLEEP_GAP_MS = 150 * 1000; // the 1-minute timer missing by this much means the computer slept
 const TICK_ALARM = "qr-tick";
 
 function todayKey() {
@@ -82,37 +83,56 @@ async function markToday() {
   await chrome.storage.local.set({ lastOpenDay: todayKey() });
 }
 
+// Ask the content script on the Quran page to show the prompt. A newly opened
+// tab may not have its script ready yet, so retry briefly.
+async function showWakePrompt(tabId) {
+  for (let i = 0; i < 12; i++) {
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: "qr-wake-prompt" });
+      return;
+    } catch (err) {
+      await sleep(1000);
+    }
+  }
+}
+
 async function focusQuranOnce() {
   const { wakeEnabled = true, lastOpenDay } = await chrome.storage.local.get(["wakeEnabled", "lastOpenDay"]);
   if (!wakeEnabled || lastOpenDay === todayKey()) return;
   await markToday();
   const existing = await chrome.tabs.query({ url: QURAN_MATCH });
+  let tabId;
   if (existing.length > 0) {
     // Keep the tab as it is (it already shows your place), just bring it forward.
-    await activate(existing[0].id);
+    tabId = existing[0].id;
+    await activate(tabId);
   } else {
     await openQuran();
+    tabId = (await chrome.tabs.query({ url: QURAN_MATCH }))[0]?.id;
   }
+  const { wakePromptHidden } = await chrome.storage.local.get("wakePromptHidden");
+  if (tabId !== undefined && !wakePromptHidden) await showWakePrompt(tabId);
 }
 
 function setUpWakeDetection() {
-  chrome.idle.setDetectionInterval(AWAY_SECONDS);
   chrome.alarms.create(TICK_ALARM, { periodInMinutes: 1 });
 }
 
-// Screen unlock / back from idle.
-chrome.idle.onStateChanged.addListener((state) => {
-  if (state === "active") focusQuranOnce();
+// Screen unlocked (covers a lid close that locks the screen).
+chrome.idle.onStateChanged.addListener(async (state) => {
+  const { idleState } = await chrome.storage.local.get("idleState");
+  await chrome.storage.local.set({ idleState: state });
+  if (state === "active" && idleState === "locked") focusQuranOnce();
 });
 
-// Sleep detection that needs no lock screen: the 1-minute timer stops while the
-// laptop sleeps, so a large gap between ticks means we just woke up.
+// Sleep without a lock screen: the 1-minute timer stops while the computer
+// sleeps, so a gap between ticks means it just woke up.
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== TICK_ALARM) return;
   const { lastTick } = await chrome.storage.local.get("lastTick");
   const now = Date.now();
   await chrome.storage.local.set({ lastTick: now });
-  if (lastTick && now - lastTick > AWAY_SECONDS * 1000) focusQuranOnce();
+  if (lastTick && now - lastTick > SLEEP_GAP_MS) focusQuranOnce();
 });
 
 chrome.runtime.onInstalled.addListener(setUpWakeDetection);
