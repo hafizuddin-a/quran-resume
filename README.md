@@ -5,7 +5,7 @@
 <h1 align="center">Quran Resume</h1>
 
 <p align="center">
-  Opens quran.com at the verse you stopped on, in a pinned tab, every time your browser starts.
+  Opens quran.com at the verse you stopped on when your browser starts.
 </p>
 
 <p align="center">
@@ -19,34 +19,32 @@
 
 <br>
 
-Quran Resume is a small browser extension for [quran.com](https://quran.com). It remembers the verse you were
-reading and, the next time your browser starts, opens the whole surah in a pinned tab, scrolled to that verse and
-in front of everything else.
+Quran Resume is a small extension for [quran.com](https://quran.com). It remembers the verse you were reading.
+When your browser starts, it opens that surah in a pinned tab, scrolled to the verse, in front of your other tabs.
 
-- Remembers your place automatically as you scroll. There is nothing to click or save.
-- Opens on every browser startup, as a **pinned tab that is the one you see first**, even when your browser's
-  "continue where you left off" brings back all your other tabs.
-- Opens the **whole surah** at your verse, not a single-verse view, so you can keep reading in either direction.
-- If your browser restored a quran.com tab, it reuses it instead of opening a second one.
-- A toolbar icon takes you to your last verse at any time.
-- No account, no analytics, and no network requests of its own. It saves only your last verse, on your device.
+- Saves your place as you scroll. There is nothing to click.
+- Opens on browser startup as a pinned tab you see first, even when the browser restores all your old tabs.
+- Opens the whole surah at your verse rather than a single-verse view, so you can read in either direction.
+- Reuses a quran.com tab the browser already restored instead of opening a second one.
+- Once a day, the first time your computer wakes or unlocks with the browser open, it brings the Quran tab to the front.
+  You can turn this off.
+- Can sync your place to your other computers through Chrome sync.
+- No account and no analytics. It makes no network requests of its own.
 
 Works in Chrome and other Chromium browsers (Edge, Brave, Ecosia and so on).
 
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="store/screenshots/01-saved-automatically.png" alt="Your place is saved automatically" width="400"><br>
-      <sub>Your place is saved as you read.</sub>
+      <img src="store/screenshots/01-toolbar-menu.png" alt="The toolbar menu showing the last verse and three switches" width="400"><br>
+      <sub>The toolbar menu.</sub>
     </td>
     <td align="center" width="50%">
-      <img src="store/screenshots/02-opens-on-startup.png" alt="Your browser opens to the Quran in a pinned tab" width="400"><br>
-      <sub>Next startup, it opens pinned and in front.</sub>
+      <img src="store/screenshots/02-wake-prompt.png" alt="The prompt shown after the computer wakes" width="400"><br>
+      <sub>The prompt after your computer wakes.</sub>
     </td>
   </tr>
 </table>
-
-<sub>These images are illustrations. They use placeholder text lines rather than real verses.</sub>
 
 ## Install
 
@@ -55,86 +53,91 @@ Works in Chrome and other Chromium browsers (Edge, Brave, Ecosia and so on).
 **Or by hand:**
 
 1. Download `quran-resume-<version>.zip` from the [Releases](../../releases) page and unzip it into a folder you
-   will keep (the browser reads the extension from that folder, so don't delete it).
+   will keep. The browser reads the extension from that folder, so don't delete it.
 2. Open `chrome://extensions` (or `edge://extensions`, `ecosia://extensions`) and turn on **Developer mode**.
 3. Click **Load unpacked** and choose the unzipped folder.
-4. Open quran.com and read. Next time your browser starts, the Quran tab opens at your last verse.
+4. A welcome page opens. Pick where you want to begin, then close and reopen the browser.
 
 Chrome on Windows may show a "Disable developer mode extensions" notice each time it starts, because the extension
 was loaded by hand. The Chrome Web Store version doesn't have that.
 
-Prefer to read the code first? It is all in this repository, and there is no build step (below).
+Prefer to read the code first? It is all in this repository, and there is no build step.
 
 ## Use
 
 | Do this | What happens |
 |---------|--------------|
-| Read on quran.com | Your place is saved as you scroll (once you've scrolled, clicked or pressed a key) |
-| Install it | A short welcome page opens, where you can choose your starting surah and verse. Close and reopen your browser to see it work |
-| Start your browser | A pinned quran.com tab opens at your last verse and is brought to the front (you can turn this off in the menu) |
-| Come back after a break | Once a day, the first time your computer wakes from sleep or is unlocked with the browser open, the Quran tab comes to the front and a small prompt lets you switch this off or stop showing the prompt. It is on by default; the switch is also in the extension's options (right-click the icon, then Options) |
-| Press Alt+Shift+Q (Option+Shift+Q on a Mac) | Jumps to your Quran tab at your last verse from anywhere (change it at `chrome://extensions/shortcuts`) |
-| Use Chrome on another computer | With **Sync my place** on, your last verse follows you through Chrome sync. The newest place wins |
-| Click the toolbar icon | A menu shows the chapter and verse you last stopped at, an **Open Quran** button, the switches for startup, wake-from-sleep and sync, and a link to talk to the developer |
+| Read on quran.com | Your place is saved as you scroll, once you have scrolled, clicked or pressed a key |
+| Start your browser | A pinned quran.com tab opens at your last verse and comes to the front |
+| Wake or unlock your computer | The first time each day, the Quran tab comes to the front and a small prompt lets you turn this off |
+| Press Alt+Shift+Q (Option+Shift+Q on a Mac) | Jumps to your Quran tab at your last verse. Change the keys at `chrome://extensions/shortcuts` |
+| Click the toolbar icon | Shows your last chapter and verse, an Open Quran button, the switches, and a link to message the developer |
 
-The first time, before anything has been saved, it opens Al-Fatihah.
+Before anything has been saved it opens Al-Fatihah, or the place you picked on the welcome page.
 
 ## How it works
 
-- **Saving your place.** A small script on quran.com notes which verse is nearest the top of the screen, using
-  the verse markers the page already has (`data-verse-key`), and stores it in the browser's extension storage.
-  It saves while you scroll, so it doesn't matter how you close the tab or the browser. It starts saving only
-  after you scroll, click, touch or press a key, so a tab your browser restored but you haven't touched can never
-  overwrite your real place.
-- **Opening on startup.** About two seconds after the browser starts (to let it finish restoring tabs), the
-  extension looks for an open quran.com tab. It reuses it, or opens a new one, pinned, at
-  `https://quran.com/<surah>?startingVerse=<verse>`. That address shows the whole surah positioned at your verse;
-  the plain `quran.com/<surah>/<verse>` form shows only that one verse.
-- **Staying in front.** Session restore can finish after the extension runs and switch to another tab, so the
-  Quran tab is brought to the front again at 0, 1.5, 3.5 and 6 seconds.
+- Saving your place. A small script on quran.com notes which verse is nearest the top of the screen, using the verse
+  markers the page already has (`data-verse-key`), and stores it in the browser's extension storage. It saves while
+  you scroll, so it doesn't matter how you close the tab or the browser. It starts saving only after you scroll,
+  click, touch or press a key, so a restored tab you haven't touched can't overwrite your real place.
+- Opening on startup. About two seconds after the browser starts, to let it finish restoring tabs, the extension looks
+  for an open quran.com tab. It reuses it, or opens a new pinned one, at
+  `https://quran.com/<surah>?startingVerse=<verse>`. That address shows the whole surah positioned at your verse. The
+  plain `quran.com/<surah>/<verse>` form shows only that one verse.
+- Staying in front. Session restore can finish after the extension runs and switch to another tab, so the Quran tab is
+  brought forward again at 0, 1.5, 3.5 and 6 seconds.
+- Waking up. The extension notices an unlock, or a gap in a one-minute timer that means the computer slept. It acts
+  on the first one each calendar day.
+- Syncing. With Sync my place on, the last verse is also written to Chrome's sync storage, and the newest save wins.
 
 ## Privacy
 
-Your last verse (for example `2:9`) and the time it was saved are kept in your browser's local extension storage and
-never leave your device. The extension has no analytics, makes no network requests of its own, loads no remote code,
-and needs no account. Your place only leaves your device if you use Chrome sync, and then it travels through Chrome's own sync to your other signed-in browsers (you can turn it off in the menu). Its permissions are `storage`, `idle` and `alarms` (to notice that the computer woke up, nothing more) and access to `https://quran.com/*`. The full policy is in
-[PRIVACY.md](PRIVACY.md).
+Your last verse (for example `2:9`) and the time it was saved are kept in your browser's extension storage. The
+extension never sends them anywhere. If you use Chrome sync and leave Sync my place on, Chrome keeps a copy in its own
+sync storage and syncs it to your other signed-in browsers. There are no analytics, no remote code and no account.
+
+Permissions: `storage`, `idle` and `alarms` (to notice that the computer woke up), and access to `https://quran.com/*`.
+The full policy is in [PRIVACY.md](PRIVACY.md).
 
 ## What it can't do
 
-- It remembers one place, your last verse. It doesn't keep bookmarks or separate places per surah, and it doesn't
-  sync between devices or touch your quran.com account or its own "last read".
+- It remembers one place, your last verse. There are no bookmarks, and it doesn't touch your quran.com account or its
+  own "last read".
 - It relies on how quran.com marks up its pages. If they change it, saving your place could stop working until the
   selector at the top of [content.js](content.js) is updated. Please open an issue if that happens.
-- It acts when the browser starts. Opening a new window later doesn't do it; click the toolbar icon instead.
-- If your browser is very slow to restore tabs, the Quran tab may not stay in front. It makes its last attempt about
-  six seconds after startup.
+- Sync needs a browser that has Chrome sync. Without it, your place stays on that computer.
+- It acts when the browser starts and on the first wake each day. Opening a new window later doesn't do it. Use the
+  toolbar icon or the shortcut instead.
+- If your browser is very slow to restore tabs, the Quran tab may not stay in front. Its last attempt is about six
+  seconds after startup.
 
 ## Build from source
 
-There is no build step. The extension is three small files and an icon set, so you can load this folder directly
-with **Load unpacked**.
+There is no build step. Load this folder with **Load unpacked**.
 
 ```bash
 ./release.sh    # makes dist/quran-resume-<version>.zip, the file for the Chrome Web Store and for GitHub Releases
 ./publish.sh    # runs release.sh, then creates the GitHub release (needs the gh CLI, signed in)
 ```
 
-`./publish.sh` uses [release-notes/v1.4.1.md](release-notes/v1.4.1.md) (the file named after the tag) for the release
-text if it exists. The version number comes from [manifest.json](manifest.json).
+`./publish.sh` uses `release-notes/<tag>.md` for the release text if it exists. The version number comes from
+[manifest.json](manifest.json).
 
 | File | What it does |
 |------|--------------|
-| [manifest.json](manifest.json) | Extension description, permissions and icons |
-| [background.js](background.js) | Opens and focuses the Quran tab on startup, on a toolbar click, and once a day when you return from a break |
-| [popup.html](popup.html), [popup.css](popup.css), [popup.js](popup.js), [surahs.js](surahs.js) | The toolbar menu: last verse, once-a-day switch, link to the developer |
-| [welcome.html](welcome.html), [welcome.css](welcome.css), [welcome.js](welcome.js) | The page shown once after install, with a place picker |
-| [options.html](options.html), [options.js](options.js) | The on/off switch for the return-from-break behaviour |
-| [content.js](content.js) | Runs on quran.com and saves the verse you are on |
+| [manifest.json](manifest.json) | Description, permissions, icons and the shortcut |
+| [background.js](background.js) | Opens and focuses the Quran tab on startup, on wake, on the shortcut, and syncs your place |
+| [content.js](content.js) | Runs on quran.com, saves the verse you are on and shows the wake prompt |
+| [popup.html](popup.html), [popup.css](popup.css), [popup.js](popup.js) | The toolbar menu |
+| [welcome.html](welcome.html), [welcome.css](welcome.css), [welcome.js](welcome.js) | The page shown once after install |
+| [options.html](options.html), [options.js](options.js) | The options page |
+| [surahs.js](surahs.js) | Surah names and verse counts |
 | [icons](icons) | The logo as SVG and the PNG sizes the browser needs |
 
 `python3 tools/render-icons.py` redraws the PNG icons and the README logo from [icons/icon.svg](icons/icon.svg)
-(it needs `pip install cairosvg`). The [store](store) folder holds the Chrome Web Store listing text and promo tile.
+(it needs `pip install cairosvg`). The [store](store) folder holds the Chrome Web Store listing text, promo tile and
+screenshots.
 
 ### About the logo
 

@@ -23,9 +23,3 @@ out = root / "assets" / "logo.png"
 cairosvg.svg2png(url=str(svg), write_to=str(out), output_width=512, output_height=512)
 print("wrote", out.relative_to(root))
 
-# promo tile for the Chrome Web Store listing
-promo = root / "store" / "promo-440x280.svg"
-if promo.exists():
-    out = root / "store" / "promo-440x280.png"
-    cairosvg.svg2png(url=str(promo), write_to=str(out), output_width=440, output_height=280)
-    print("wrote", out.relative_to(root))
