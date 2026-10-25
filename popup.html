@@ -15,14 +15,17 @@
     <div class="label">Last stopped at</div>
     <div class="verse" id="verse">Not saved yet</div>
     <div class="sub" id="verse-sub">Start reading on quran.com and your place is saved automatically.</div>
-    <button class="primary" id="open">Open Quran</button>
+    <div class="actions"><button class="primary" id="open">Open Quran</button><button class="hint" id="shortcut" title="Change the shortcut"></button></div>
   </section>
 
   <hr>
 
   <section>
     <div class="label">When Chrome starts</div>
-    <div class="static">Always opens the Quran at your last verse.</div>
+    <label class="row">
+      <span>Open the Quran at your last verse</span>
+      <span class="toggle"><input type="checkbox" id="startup"><span class="track"></span><span class="knob"></span></span>
+    </label>
   </section>
 
   <hr>
@@ -35,6 +38,19 @@
         <small>Only the first wake each day, while Chrome is open.</small>
       </span>
       <span class="toggle"><input type="checkbox" id="wake"><span class="track"></span><span class="knob"></span></span>
+    </label>
+  </section>
+
+  <hr>
+
+  <section>
+    <div class="label">Across your computers</div>
+    <label class="row">
+      <span>
+        Sync my place
+        <small>Uses Chrome sync, so you can carry on where you stopped on another computer.</small>
+      </span>
+      <span class="toggle"><input type="checkbox" id="sync"><span class="track"></span><span class="knob"></span></span>
     </label>
   </section>
 

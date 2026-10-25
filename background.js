@@ -42,6 +42,7 @@ async function activate(tabId) {
 }
 
 async function openQuran() {
+  await pullFromSync();
   const url = await getTargetUrl();
   const existing = await chrome.tabs.query({ url: QURAN_MATCH });
 
@@ -63,6 +64,57 @@ async function openQuran() {
     await activate(tabId);
   }
 }
+
+// ---- Sync the last verse across computers (chrome.storage.sync) ----
+//
+// The newest save wins. Pushes are delayed and merged by an alarm so scrolling
+// never hits Chrome's sync write limits. Needs Chrome sync to be turned on;
+// otherwise the data simply stays on this computer.
+
+const SYNC_ALARM = "qr-sync-push";
+
+async function syncIsOn() {
+  const { syncEnabled = true } = await chrome.storage.local.get("syncEnabled");
+  return syncEnabled;
+}
+
+async function pushToSync() {
+  try {
+    if (!(await syncIsOn())) return;
+    const { verseKey, savedAt = 0 } = await chrome.storage.local.get(["verseKey", "savedAt"]);
+    if (!verseKey) return;
+    const remote = await chrome.storage.sync.get(["verseKey", "savedAt"]);
+    if ((remote.savedAt || 0) >= savedAt) return;
+    await chrome.storage.sync.set({ verseKey, savedAt });
+  } catch (err) {
+    // Sync unavailable or over quota: keep working locally.
+  }
+}
+
+// Returns true if a newer place from another computer was applied.
+async function pullFromSync() {
+  try {
+    if (!(await syncIsOn())) return false;
+    const { verseKey, savedAt = 0 } = await chrome.storage.local.get(["verseKey", "savedAt"]);
+    const remote = await chrome.storage.sync.get(["verseKey", "savedAt"]);
+    if (remote.verseKey && (remote.savedAt || 0) > savedAt && remote.verseKey !== verseKey) {
+      await chrome.storage.local.set({ verseKey: remote.verseKey, savedAt: remote.savedAt });
+      return true;
+    }
+  } catch (err) {
+    // ignore
+  }
+  return false;
+}
+
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area === "local" && changes.verseKey) {
+    if (!(await chrome.alarms.get(SYNC_ALARM))) chrome.alarms.create(SYNC_ALARM, { delayInMinutes: 0.5 });
+  } else if (area === "sync" && changes.verseKey) {
+    pullFromSync();
+  }
+});
+
 
 // ---- Once-a-day return to the Quran after the computer wakes ----
 //
@@ -100,11 +152,14 @@ async function focusQuranOnce() {
   const { wakeEnabled = true, lastOpenDay } = await chrome.storage.local.get(["wakeEnabled", "lastOpenDay"]);
   if (!wakeEnabled || lastOpenDay === todayKey()) return;
   await markToday();
+  const movedOnAnotherComputer = await pullFromSync();
   const existing = await chrome.tabs.query({ url: QURAN_MATCH });
   let tabId;
   if (existing.length > 0) {
     // Keep the tab as it is (it already shows your place), just bring it forward.
+    // If you read further on another computer, move it to that place first.
     tabId = existing[0].id;
+    if (movedOnAnotherComputer) await chrome.tabs.update(tabId, { url: await getTargetUrl() });
     await activate(tabId);
   } else {
     await openQuran();
@@ -128,6 +183,7 @@ chrome.idle.onStateChanged.addListener(async (state) => {
 // Sleep without a lock screen: the 1-minute timer stops while the computer
 // sleeps, so a gap between ticks means it just woke up.
 chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === SYNC_ALARM) return pushToSync();
   if (alarm.name !== TICK_ALARM) return;
   const { lastTick } = await chrome.storage.local.get("lastTick");
   const now = Date.now();
@@ -139,6 +195,8 @@ chrome.runtime.onInstalled.addListener(setUpWakeDetection);
 
 chrome.runtime.onStartup.addListener(async () => {
   setUpWakeDetection();
+  const { startupEnabled = true } = await chrome.storage.local.get("startupEnabled");
+  if (!startupEnabled) return;
   await sleep(STARTUP_DELAY_MS);
   await markToday(); // startup already opened the Quran for today
   await openQuran();
@@ -147,4 +205,9 @@ chrome.runtime.onStartup.addListener(async () => {
 // The toolbar popup asks us to open the Quran at the last verse.
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg && msg.type === "qr-open") openQuran();
+});
+
+// Keyboard shortcut (default Alt+Shift+Q, changeable at chrome://extensions/shortcuts).
+chrome.commands.onCommand.addListener((command) => {
+  if (command === "open-quran") openQuran();
 });

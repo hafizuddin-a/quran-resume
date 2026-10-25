@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Quran Resume",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "homepage_url": "https://github.com/hafizuddin-a/quran-resume",
   "description": "Opens quran.com as a pinned, active tab on browser startup, at the verse where you last stopped reading.",
   "icons": {
@@ -53,5 +53,13 @@
       "32": "icons/icon32.png"
     },
     "default_popup": "popup.html"
+  },
+  "commands": {
+    "open-quran": {
+      "suggested_key": {
+        "default": "Alt+Shift+Q"
+      },
+      "description": "Open the Quran at your last verse"
+    }
   }
 }

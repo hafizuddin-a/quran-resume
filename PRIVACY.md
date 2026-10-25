@@ -6,7 +6,10 @@
 
 The only thing it saves is the **last verse you were reading** (for example
 `2:9`) and the time it was saved. This is kept in your browser's local extension
-storage (`chrome.storage.local`) on your own device. It is never sent anywhere.
+storage (`chrome.storage.local`) on your own device. The extension itself never
+sends it anywhere. If "Sync my place" is on (the default) and you use Chrome sync,
+Chrome also keeps a copy in `chrome.storage.sync`, which Chrome syncs to your other
+signed-in browsers through your Google account. Turn this off in the toolbar menu.
 
 ## What the extension accesses
 

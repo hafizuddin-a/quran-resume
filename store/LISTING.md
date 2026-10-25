@@ -26,6 +26,8 @@ How it works:
 - If your browser restores your old tabs on startup, Quran Resume reuses an existing
   quran.com tab rather than opening a duplicate, and keeps focus on it.
 - Once a day, the first time your computer wakes or is unlocked with the browser open, the Quran tab comes to the front and a small prompt offers a switch to turn this off, or to stop showing the prompt. It is on by default.
+- Press Alt+Shift+Q (Option+Shift+Q on a Mac) to jump to your last verse from anywhere (you can change the shortcut).
+- Your place can follow you to your other computers through Chrome sync (switch in the menu).
 - Click the toolbar icon for a menu: your last chapter and verse, an Open Quran button, the once-a-day switch, and a link to message the developer.
 
 Private by design:
@@ -42,8 +44,7 @@ Reopen quran.com at the user's last-read verse when the browser starts.
 ## Permission justifications
 
 **storage**
-Stores the last-read verse (for example "2:9") locally so it can be restored on the
-next browser startup.
+Stores the last-read verse (for example "2:9") and a few on/off settings locally, and in Chrome sync if the user leaves "Sync my place" on, so it can be restored on the next browser startup and on the user's other computers.
 
 **idle**
 Detects when the screen is unlocked, so the Quran tab can be brought forward once a day. No idle data is stored or sent.
@@ -60,7 +61,9 @@ existing quran.com tab on startup and to open or focus one at the saved verse.
 No. All code is bundled in the package.
 
 ## Data usage disclosures (Privacy tab)
-- Collects user data: none of the listed categories are collected or transmitted.
+- Collects user data: none of the listed categories are collected or transmitted to the developer.
+  The last verse is kept on the device and, if the user leaves sync on, in Chrome's own
+  sync storage. The developer never receives it.
   The last verse is stored locally only.
 - Certify: not sold to third parties; not used for purposes unrelated to the
   extension's single purpose; not used for creditworthiness or lending.

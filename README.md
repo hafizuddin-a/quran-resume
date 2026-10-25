@@ -70,9 +70,11 @@ Prefer to read the code first? It is all in this repository, and there is no bui
 | Do this | What happens |
 |---------|--------------|
 | Read on quran.com | Your place is saved as you scroll (once you've scrolled, clicked or pressed a key) |
-| Start your browser | A pinned quran.com tab opens at your last verse and is brought to the front |
+| Start your browser | A pinned quran.com tab opens at your last verse and is brought to the front (you can turn this off in the menu) |
 | Come back after a break | Once a day, the first time your computer wakes from sleep or is unlocked with the browser open, the Quran tab comes to the front and a small prompt lets you switch this off or stop showing the prompt. It is on by default; the switch is also in the extension's options (right-click the icon, then Options) |
-| Click the toolbar icon | A menu shows the chapter and verse you last stopped at, an **Open Quran** button, the once-a-day switch, and a link to talk to the developer |
+| Press Alt+Shift+Q (Option+Shift+Q on a Mac) | Jumps to your Quran tab at your last verse from anywhere (change it at `chrome://extensions/shortcuts`) |
+| Use Chrome on another computer | With **Sync my place** on, your last verse follows you through Chrome sync. The newest place wins |
+| Click the toolbar icon | A menu shows the chapter and verse you last stopped at, an **Open Quran** button, the switches for startup, wake-from-sleep and sync, and a link to talk to the developer |
 
 The first time, before anything has been saved, it opens Al-Fatihah.
 
@@ -94,7 +96,7 @@ The first time, before anything has been saved, it opens Al-Fatihah.
 
 Your last verse (for example `2:9`) and the time it was saved are kept in your browser's local extension storage and
 never leave your device. The extension has no analytics, makes no network requests of its own, loads no remote code,
-and needs no account. Its permissions are `storage`, `idle` and `alarms` (to notice that the computer woke up, nothing more) and access to `https://quran.com/*`. The full policy is in
+and needs no account. Your place only leaves your device if you use Chrome sync, and then it travels through Chrome's own sync to your other signed-in browsers (you can turn it off in the menu). Its permissions are `storage`, `idle` and `alarms` (to notice that the computer woke up, nothing more) and access to `https://quran.com/*`. The full policy is in
 [PRIVACY.md](PRIVACY.md).
 
 ## What it can't do
@@ -117,7 +119,7 @@ with **Load unpacked**.
 ./publish.sh    # runs release.sh, then creates the GitHub release (needs the gh CLI, signed in)
 ```
 
-`./publish.sh` uses [release-notes/v1.2.1.md](release-notes/v1.2.1.md) (the file named after the tag) for the release
+`./publish.sh` uses [release-notes/v1.3.0.md](release-notes/v1.3.0.md) (the file named after the tag) for the release
 text if it exists. The version number comes from [manifest.json](manifest.json).
 
 | File | What it does |
