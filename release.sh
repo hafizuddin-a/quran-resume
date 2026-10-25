@@ -14,12 +14,13 @@ if command -v node >/dev/null 2>&1; then
   node --check options.js
   node --check popup.js
   node --check surahs.js
+  node --check welcome.js
 fi
 
 mkdir -p dist
 ZIP="dist/quran-resume-$VERSION.zip"
 rm -f "$ZIP"
-zip -r "$ZIP" manifest.json background.js content.js options.html options.js popup.html popup.css popup.js surahs.js icons -x '*.DS_Store' >/dev/null
+zip -r "$ZIP" manifest.json background.js content.js options.html options.js popup.html popup.css popup.js surahs.js welcome.html welcome.css welcome.js icons -x '*.DS_Store' >/dev/null
 
 echo "Created $ZIP"
 if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$ZIP"; else sha256sum "$ZIP"; fi

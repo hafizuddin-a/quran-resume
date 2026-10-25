@@ -70,6 +70,7 @@ Prefer to read the code first? It is all in this repository, and there is no bui
 | Do this | What happens |
 |---------|--------------|
 | Read on quran.com | Your place is saved as you scroll (once you've scrolled, clicked or pressed a key) |
+| Install it | A short welcome page opens, where you can choose your starting surah and verse. Close and reopen your browser to see it work |
 | Start your browser | A pinned quran.com tab opens at your last verse and is brought to the front (you can turn this off in the menu) |
 | Come back after a break | Once a day, the first time your computer wakes from sleep or is unlocked with the browser open, the Quran tab comes to the front and a small prompt lets you switch this off or stop showing the prompt. It is on by default; the switch is also in the extension's options (right-click the icon, then Options) |
 | Press Alt+Shift+Q (Option+Shift+Q on a Mac) | Jumps to your Quran tab at your last verse from anywhere (change it at `chrome://extensions/shortcuts`) |
@@ -119,7 +120,7 @@ with **Load unpacked**.
 ./publish.sh    # runs release.sh, then creates the GitHub release (needs the gh CLI, signed in)
 ```
 
-`./publish.sh` uses [release-notes/v1.3.2.md](release-notes/v1.3.2.md) (the file named after the tag) for the release
+`./publish.sh` uses [release-notes/v1.4.0.md](release-notes/v1.4.0.md) (the file named after the tag) for the release
 text if it exists. The version number comes from [manifest.json](manifest.json).
 
 | File | What it does |
@@ -127,6 +128,7 @@ text if it exists. The version number comes from [manifest.json](manifest.json).
 | [manifest.json](manifest.json) | Extension description, permissions and icons |
 | [background.js](background.js) | Opens and focuses the Quran tab on startup, on a toolbar click, and once a day when you return from a break |
 | [popup.html](popup.html), [popup.css](popup.css), [popup.js](popup.js), [surahs.js](surahs.js) | The toolbar menu: last verse, once-a-day switch, link to the developer |
+| [welcome.html](welcome.html), [welcome.css](welcome.css), [welcome.js](welcome.js) | The page shown once after install, with a place picker |
 | [options.html](options.html), [options.js](options.js) | The on/off switch for the return-from-break behaviour |
 | [content.js](content.js) | Runs on quran.com and saves the verse you are on |
 | [icons](icons) | The logo as SVG and the PNG sizes the browser needs |

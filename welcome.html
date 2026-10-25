@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Welcome to Quran Resume</title>
+  <link rel="stylesheet" href="welcome.css">
+</head>
+<body>
+  <main>
+    <img class="logo" src="icons/icon128.png" alt="Quran Resume" width="96" height="96">
+    <h1>Thank you for installing Quran Resume</h1>
+    <p class="lead">From now on, your browser opens the Quran at the verse where you last stopped.</p>
+
+    <section class="card">
+      <h2><span class="n">1</span> Choose where to begin</h2>
+      <p>Pick a starting place. You can change it any time just by reading on quran.com, and your place is saved automatically.</p>
+      <div class="pick">
+        <label>Surah
+          <select id="surah"></select>
+        </label>
+        <label>Verse
+          <input id="verse" type="number" min="1" value="1" inputmode="numeric">
+        </label>
+      </div>
+      <p class="saved" id="saved" hidden></p>
+    </section>
+
+    <section class="card">
+      <h2><span class="n">2</span> Close and reopen Chrome</h2>
+      <p>The next time your browser starts, the Quran opens by itself in a pinned tab at your place. Don't want to wait?</p>
+      <button class="primary" id="open">Open the Quran now</button>
+    </section>
+
+    <p class="tip">Tip: click the puzzle-piece icon in your toolbar and pin Quran Resume. Its menu shows your last verse and lets you change the settings.</p>
+  </main>
+  <script src="surahs.js"></script>
+  <script src="welcome.js"></script>
+</body>
+</html>

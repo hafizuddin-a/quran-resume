@@ -26,6 +26,7 @@ How it works:
 - If your browser restores your old tabs on startup, Quran Resume reuses an existing
   quran.com tab rather than opening a duplicate, and keeps focus on it.
 - Once a day, the first time your computer wakes or is unlocked with the browser open, the Quran tab comes to the front and a small prompt offers a switch to turn this off, or to stop showing the prompt. It is on by default.
+- On install, a short welcome page lets you pick your starting surah and verse.
 - Press Alt+Shift+Q (Option+Shift+Q on a Mac) to jump to your last verse from anywhere (you can change the shortcut).
 - Your place can follow you to your other computers through Chrome sync (switch in the menu).
 - Click the toolbar icon for a menu: your last chapter and verse, an Open Quran button, the once-a-day switch, and a link to message the developer.

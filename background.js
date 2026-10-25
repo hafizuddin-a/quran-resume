@@ -213,3 +213,8 @@ if (chrome.commands && chrome.commands.onCommand) {
     if (command === "open-quran") openQuran();
   });
 }
+
+// First install: open a short welcome page (not on updates).
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === "install") chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+});
