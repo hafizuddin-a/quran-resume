@@ -59,8 +59,7 @@ No. All code is bundled in the package.
   extension's single purpose; not used for creditworthiness or lending.
 
 ## Privacy policy URL
-Use the public GitHub link to PRIVACY.md once the repo is published, for example:
-https://github.com/<your-username>/quran-resume/blob/main/PRIVACY.md
+https://github.com/hafizuddin-a/quran-resume/blob/main/PRIVACY.md
 
 ## Assets
 - Store icon 128x128: `icons/icon128.png`
@@ -71,6 +70,6 @@ https://github.com/<your-username>/quran-resume/blob/main/PRIVACY.md
 ## Submission checklist
 1. Register as a Chrome Web Store developer (one-time US$5 fee, and 2-step
    verification must be on for your Google account).
-2. Upload `quran-resume-store.zip`.
+2. Run `./release.sh` and upload `dist/quran-resume-<version>.zip` (the same file that goes on the GitHub release).
 3. Fill in the Store listing, Privacy, and Distribution tabs from this file.
 4. Submit for review. First reviews commonly take a few days.
