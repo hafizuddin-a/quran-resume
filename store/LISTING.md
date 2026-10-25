@@ -64,8 +64,7 @@ https://github.com/hafizuddin-a/quran-resume/blob/main/PRIVACY.md
 ## Assets
 - Store icon 128x128: `icons/icon128.png`
 - Small promo tile 440x280: `store/promo-440x280.png`
-- Screenshots (required, 1280x800 or 640x400, at least 1): take these yourself,
-  for example quran.com open at a surah with the pinned Quran Resume tab visible.
+- Screenshots (1280x800 RGB PNG, at least 1): `store/screenshots/*.png` (sources in `store/screenshots/src/`).
 
 ## Submission checklist
 1. Register as a Chrome Web Store developer (one-time US$5 fee, and 2-step

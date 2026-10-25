@@ -33,6 +33,21 @@ in front of everything else.
 
 Works in Chrome and other Chromium browsers (Edge, Brave, Ecosia and so on).
 
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="store/screenshots/01-saved-automatically.png" alt="Your place is saved automatically" width="400"><br>
+      <sub>Your place is saved as you read.</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="store/screenshots/02-opens-on-startup.png" alt="Your browser opens to the Quran in a pinned tab" width="400"><br>
+      <sub>Next startup, it opens pinned and in front.</sub>
+    </td>
+  </tr>
+</table>
+
+<sub>These images are illustrations. They use placeholder text lines rather than real verses.</sub>
+
 ## Install
 
 **From the Chrome Web Store:** coming soon. The link will be added here once it is listed.
