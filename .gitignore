@@ -2,4 +2,4 @@
 *.zip
 dist/
 node_modules/
-_to_delete/
+old-files-bin/
