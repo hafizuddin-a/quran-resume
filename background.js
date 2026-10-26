@@ -12,8 +12,9 @@ const DEFAULT_URL = "https://quran.com/1";
 // instead of opening a duplicate).
 const STARTUP_DELAY_MS = 2000;
 
-// Moments (ms after we create/reuse the tab) at which we re-assert focus.
-const ACTIVATE_AT_MS = [0, 1500, 3500, 6000];
+// Moments (ms after we create/reuse the tab) at which we re-assert focus. Kept short so
+// it never fights you if you click another tab right after the browser starts.
+const ACTIVATE_AT_MS = [0, 1200];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

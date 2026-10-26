@@ -88,7 +88,7 @@ Before anything has been saved it opens Al-Fatihah, or the place you picked on t
   `https://quran.com/<surah>?startingVerse=<verse>`. That address shows the whole surah positioned at your verse. The
   plain `quran.com/<surah>/<verse>` form shows only that one verse.
 - Staying in front. Session restore can finish after the extension runs and switch to another tab, so the Quran tab is
-  brought forward again at 0, 1.5, 3.5 and 6 seconds.
+  brought forward once more about a second later. It stops there, so clicking another tab after that is respected.
 - Waking up. The extension notices an unlock, or a gap in a one-minute timer that means the computer slept. It acts
   on the first one each calendar day.
 - Syncing. With Sync my place on, the last verse is also written to Chrome's sync storage, and the newest save wins.
@@ -111,8 +111,8 @@ The full policy is in [PRIVACY.md](PRIVACY.md).
 - Sync needs a browser that has Chrome sync. Without it, your place stays on that computer.
 - It acts when the browser starts and on the first wake each day. Opening a new window later doesn't do it. Use the
   toolbar icon or the shortcut instead.
-- If your browser is very slow to restore tabs, the Quran tab may not stay in front. Its last attempt is about six
-  seconds after startup.
+- If your browser is very slow to restore tabs, the Quran tab may not stay in front. Its last attempt is about a second
+  after it opens.
 
 ## Build from source
 
