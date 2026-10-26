@@ -19,7 +19,7 @@
     "https://quran.com/*"
   ],
   "optional_host_permissions": [
-    "https://quran-resume.YOUR-SUBDOMAIN.workers.dev/*"
+    "https://quran-resume.hello-hafiz.workers.dev/*"
   ],
   "web_accessible_resources": [
     {
