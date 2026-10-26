@@ -7,9 +7,16 @@ cd "$(dirname "$0")"
 
 VERSION=$(python3 -c "import json; print(json.load(open('manifest.json'))['version'])")
 
+# the phone server's address must be filled in before anything ships
+if grep -q "YOUR-SUBDOMAIN" config.js manifest.json; then
+  echo "config.js / manifest.json still hold the placeholder phone server address. Deploy phone/ and put its address in both." >&2
+  exit 1
+fi
+
 # catch a syntax slip before it ships
 if command -v node >/dev/null 2>&1; then
   node --check background.js
+  node --check config.js
   node --check content.js
   node --check options.js
   node --check popup.js
@@ -20,7 +27,7 @@ fi
 mkdir -p dist
 ZIP="dist/quran-resume-$VERSION.zip"
 rm -f "$ZIP"
-zip -r "$ZIP" manifest.json background.js content.js options.html options.js popup.html popup.css popup.js surahs.js welcome.html welcome.css welcome.js icons -x '*.DS_Store' >/dev/null
+zip -r "$ZIP" manifest.json background.js content.js options.html options.js popup.html popup.css popup.js surahs.js config.js welcome.html welcome.css welcome.js icons vendor -x '*.DS_Store' >/dev/null
 
 echo "Created $ZIP"
 if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$ZIP"; else sha256sum "$ZIP"; fi

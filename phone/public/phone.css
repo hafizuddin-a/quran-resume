@@ -1,0 +1,26 @@
+:root { color-scheme: light dark; --bg:#f6f4ec; --fg:#1f1f1f; --muted:#5b5f5d; --card:#fff; --line:#e3e0d3; --accent:#0b57d0; --btn-fg:#fff; }
+@media (prefers-color-scheme: dark) { :root { --bg:#1b1c1d; --fg:#e8e8e8; --muted:#b4b8b6; --card:#2d2e30; --line:#444746; --accent:#a8c7fa; --btn-fg:#062e6f; } }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
+main { max-width: 480px; margin: 0 auto; padding: max(32px, env(safe-area-inset-top)) 20px max(40px, env(safe-area-inset-bottom)); text-align: center; }
+.logo { border-radius: 16px; }
+h1 { font-size: 24px; line-height: 1.25; margin: 24px 0 8px; font-weight: 600; }
+.label { margin-top: 24px; color: var(--muted); font-size: 14px; }
+.verse { font-size: 44px; line-height: 1.15; font-weight: 600; margin-top: 2px; }
+.sub { color: var(--muted); margin: 2px 0 20px; }
+.primary { display: block; width: 100%; padding: 14px 20px; border-radius: 28px; background: var(--accent); color: var(--btn-fg); font-weight: 600; font-size: 17px; text-decoration: none; }
+.primary:active { filter: brightness(1.08); }
+.secondary { border: 0; border-radius: 20px; padding: 10px 20px; background: var(--accent); color: var(--btn-fg); font: inherit; font-weight: 500; cursor: pointer; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; margin-top: 16px; text-align: left; }
+h2 { font-size: 17px; margin: 0 0 4px; font-weight: 600; }
+.card p { margin: 0 0 14px; color: var(--muted); font-size: 15px; }
+.pick { display: flex; gap: 12px; margin-bottom: 14px; }
+.pick label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.pick label:first-child { flex: 1; min-width: 0; }
+select, input { font: inherit; font-size: 16px; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--fg); }
+input { width: 84px; }
+.card .saved { margin: 12px 0 0; color: var(--accent); font-weight: 500; }
+.note, #unpaired p { color: var(--muted); font-size: 15px; }
+.foot { margin: 28px 0 0; color: var(--muted); font-size: 13px; }
+.signoff { margin: 12px 0 0; color: var(--muted); font-size: 14px; }

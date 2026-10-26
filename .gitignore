@@ -3,3 +3,7 @@
 dist/
 node_modules/
 old-files-bin/
+phone/node_modules/
+phone/.wrangler/
+phone/src/surahs.mjs
+phone/public/surahs.js
