@@ -1,7 +1,6 @@
 # Privacy Policy
 
-**Quran Resume** does not collect, transmit, sell, or share any personal data, unless you turn on the optional phone
-link. That is described under "Optional: your phone" below, and nothing is sent before you do.
+**Quran Resume** does not collect, transmit, sell, or share any personal data.
 
 ## What the extension stores
 
@@ -26,29 +25,8 @@ signed-in browsers through your Google account. Turn this off in the toolbar men
 ## What the extension does not do
 
 - No analytics, tracking, advertising, or telemetry.
-- No network requests unless you turn on the phone link, and no remote code.
+- No network requests of its own, and no remote code.
 - No accounts or sign-in.
-
-## Optional: your phone
-
-If you press **Get it on your phone** in the toolbar menu, Chrome asks whether the extension may connect to the Quran
-Resume server (a Cloudflare Worker with a D1 database, run by the developer). Only if you allow it, and until you press
-**Turn off**, the extension sends this to the server:
-
-- a random pairing code (which is also the secret in your phone link),
-- your last verse (for example `2:9`) and the time it was saved.
-
-The server also keeps the time the code was last used, so it can delete codes unused for over a year. It stores no
-name, email, account, browsing history or other pages. The service does not record IP addresses; Cloudflare, which
-hosts it, handles the network traffic as any host does. Nothing is sold or shared, and it is used only to carry your
-place between your phone and your computers.
-
-The pairing code is also saved in Chrome sync, so your other computers use the same pairing. The phone page keeps a copy
-of your last place in your phone browser's own storage. Anyone who has your phone link can see and change your place
-(just a verse number), so treat the link as private.
-
-**Turn off** deletes your place and code from the server. If you can't reach the server at that moment, nothing is
-forgotten until you try again online.
 
 ## Your control
 

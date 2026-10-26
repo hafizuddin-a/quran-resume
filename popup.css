@@ -32,11 +32,3 @@ input:focus-visible ~ .knob { outline: 2px solid var(--accent); outline-offset: 
 .item:hover { background: var(--hover); }
 .item svg { width: 18px; height: 18px; color: var(--muted); }
 .item small { display: block; color: var(--muted); font-size: 12px; line-height: 16px; }
-.desc { margin: 2px 0 10px; color: var(--muted); }
-.note { display: block; color: var(--muted); font-size: 12px; line-height: 16px; margin-top: 8px; }
-.qrrow { display: flex; gap: 14px; align-items: flex-start; margin-top: 8px; }
-.qrrow .desc { margin: 0 0 6px; }
-#qr { width: 120px; height: 120px; flex: none; border-radius: 6px; border: 1px solid var(--line); background: #fff; }
-.links { display: flex; gap: 4px; margin-left: -6px; }
-.msg { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 16px; }
-.primary:disabled { opacity: .6; cursor: default; }

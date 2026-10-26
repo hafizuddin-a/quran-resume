@@ -29,9 +29,7 @@ When your browser starts, it opens that surah in a pinned tab, scrolled to the v
 - Once a day, the first time your computer wakes or unlocks with the browser open, it brings the Quran tab to the front.
   You can turn this off.
 - Can sync your place to your other computers through Chrome sync.
-- Optional: carry your place to your phone. Scan a code, and your phone opens quran.com at your verse (see
-  [On your phone](#on-your-phone)).
-- No account and no analytics. It makes no network requests unless you turn on the phone link.
+- No account and no analytics. It makes no network requests of its own.
 
 Works in Chrome and other Chromium browsers (Edge, Brave, Ecosia and so on).
 
@@ -75,7 +73,6 @@ Prefer to read the code first? It is all in this repository, and there is no bui
 | Start your browser | A pinned quran.com tab opens at your last verse and comes to the front |
 | Wake or unlock your computer | The first time each day, the Quran tab comes to the front and a small prompt lets you turn this off |
 | Press Alt+Shift+Q (Option+Shift+Q on a Mac) | Jumps to your Quran tab at your last verse. Change the keys at `chrome://extensions/shortcuts` |
-| Press **Get it on your phone** in the menu | Shows a QR code. Scan it to open your place on your phone. Chrome asks first, and nothing is sent until you agree |
 | Click the toolbar icon | Shows your last chapter and verse, an Open Quran button, the switches, and a link to message the developer |
 
 Before anything has been saved it opens Al-Fatihah, or the place you picked on the welcome page.
@@ -95,8 +92,6 @@ Before anything has been saved it opens Al-Fatihah, or the place you picked on t
 - Waking up. The extension notices an unlock, or a gap in a one-minute timer that means the computer slept. It acts
   on the first one each calendar day.
 - Syncing. With Sync my place on, the last verse is also written to Chrome's sync storage, and the newest save wins.
-- Phone link. Only after you press Get it on your phone and allow it, the last verse and its time are also sent to a small
-  server under a random pairing code, and the newest save wins there too. The code is in the link the QR code opens.
 
 ## Privacy
 
@@ -107,24 +102,6 @@ sync storage and syncs it to your other signed-in browsers. There are no analyti
 Permissions: `storage`, `idle` and `alarms` (to notice that the computer woke up), and access to `https://quran.com/*`.
 The full policy is in [PRIVACY.md](PRIVACY.md).
 
-## On your phone
-
-This part is optional and off until you turn it on.
-
-1. Click the toolbar icon and press **Get it on your phone**. Chrome asks to let the extension reach the Quran Resume
-   server. Allow it.
-2. Scan the QR code with your phone's camera. The page that opens shows your last verse and a **Continue reading**
-   button that opens quran.com at that verse.
-3. Add the page to your home screen (Android shows a button, on iPhone use Share, then Add to Home Screen).
-
-A phone browser can't see how far you scroll on quran.com, so on the phone you save your place by hand: after reading,
-open the page, pick the surah and verse, and press **Save my place**. Your computer picks it up the next time it starts
-or wakes. Your computers share one pairing through Chrome sync.
-
-What the server keeps is a random code, your last verse, when it was saved, and when the code was last used. No name,
-email or history. **Turn off** in the menu deletes it. The server is a Cloudflare Worker with a D1 database; its code is
-in [phone](phone), and you can host your own (see [phone/README.md](phone/README.md)).
-
 ## What it can't do
 
 - It remembers one place, your last verse. There are no bookmarks, and it doesn't touch your quran.com account or its
@@ -132,7 +109,6 @@ in [phone](phone), and you can host your own (see [phone/README.md](phone/README
 - It relies on how quran.com marks up its pages. If they change it, saving your place could stop working until the
   selector at the top of [content.js](content.js) is updated. Please open an issue if that happens.
 - Sync needs a browser that has Chrome sync. Without it, your place stays on that computer.
-- On the phone your place is saved by hand, because a phone browser can't see where you scroll on quran.com.
 - It acts when the browser starts and on the first wake each day. Opening a new window later doesn't do it. Use the
   toolbar icon or the shortcut instead.
 - If your browser is very slow to restore tabs, the Quran tab may not stay in front. Its last attempt is about a second
@@ -159,9 +135,6 @@ There is no build step. Load this folder with **Load unpacked**.
 | [welcome.html](welcome.html), [welcome.css](welcome.css), [welcome.js](welcome.js) | The page shown once after install |
 | [options.html](options.html), [options.js](options.js) | The options page |
 | [surahs.js](surahs.js) | Surah names and verse counts |
-| [config.js](config.js) | The address of the phone server |
-| [vendor](vendor) | The QR code library ([qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator), MIT) |
-| [phone](phone) | The phone server and page (Cloudflare Worker) |
 | [icons](icons) | The logo as SVG and the PNG sizes the browser needs |
 
 `python3 tools/render-icons.py` redraws the PNG icons and the README logo from [icons/icon.svg](icons/icon.svg)

@@ -54,31 +54,6 @@
     </label>
   </section>
 
-  <hr id="phone-sep">
-
-  <section id="phone">
-    <div class="label">On your phone</div>
-    <div id="phone-off">
-      <p class="desc" id="phone-off-text">Open the Quran on your phone at the verse where you stopped.</p>
-      <button class="primary" id="phone-start">Get it on your phone</button>
-      <small class="note">Connects to the Quran Resume server. Only your last verse is sent.</small>
-    </div>
-    <div id="phone-on" hidden>
-      <div class="qrrow">
-        <canvas id="qr" width="120" height="120" aria-label="QR code for your phone link" role="img"></canvas>
-        <div>
-          <p class="desc">Scan with your phone's camera, then add the page to your home screen.</p>
-          <div class="links">
-            <button class="hint" id="phone-copy">Copy link</button>
-            <button class="hint" id="phone-stop">Turn off</button>
-          </div>
-        </div>
-      </div>
-      <small class="note">Turning off deletes your place from the server.</small>
-    </div>
-    <p class="msg" id="phone-msg" hidden></p>
-  </section>
-
   <hr>
 
   <button class="item" id="dev">
@@ -86,8 +61,6 @@
     <span>Talk to the developer<small>Sincerely, @madebyhafiz</small></span>
   </button>
   <script src="surahs.js"></script>
-  <script src="config.js"></script>
-  <script src="vendor/qrcode.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

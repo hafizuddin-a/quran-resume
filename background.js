@@ -4,8 +4,6 @@
 // verse and make it the active tab. Session restore may finish after this runs
 // and switch focus back to an old tab, so activation is retried a few times.
 
-importScripts("config.js"); // PHONE_ORIGIN
-
 const QURAN_MATCH = "https://quran.com/*";
 const DEFAULT_URL = "https://quran.com/1";
 
@@ -95,7 +93,7 @@ async function pushToSync() {
 }
 
 // Returns true if a newer place from another computer was applied.
-async function pullFromChromeSync() {
+async function pullFromSync() {
   try {
     if (!(await syncIsOn())) return false;
     const { verseKey, savedAt = 0 } = await chrome.storage.local.get(["verseKey", "savedAt"]);
@@ -110,155 +108,13 @@ async function pullFromChromeSync() {
   return false;
 }
 
-// Takes the newest place from Chrome sync and from the phone service (if it is turned on).
-// Returns true if a newer place was applied.
-async function pullFromSync() {
-  const fromChrome = await pullFromChromeSync();
-  const fromPhone = await phoneSync();
-  return fromChrome || fromPhone;
-}
-
 chrome.storage.onChanged.addListener(async (changes, area) => {
   if (area === "local" && changes.verseKey) {
     if (!(await chrome.alarms.get(SYNC_ALARM))) chrome.alarms.create(SYNC_ALARM, { delayInMinutes: 0.5 });
   } else if (area === "sync" && changes.verseKey) {
-    pullFromChromeSync();
-  } else if (area === "sync" && changes.phoneCode) {
-    followPhoneCodeFromSync(changes.phoneCode.newValue);
+    pullFromSync();
   }
 });
-
-
-// ---- Phone (optional, off until you press "Get it on your phone") ----
-//
-// Keeps the same place on your phone through the Quran Resume phone service (the Worker in
-// phone/). Only the last verse and the time it was saved are sent, under a random pairing code.
-// Chrome asks you before the extension may reach that server, and not before.
-
-const PHONE_TIMEOUT_MS = 4000;
-
-async function phoneCode() {
-  const { phoneOn = false, phoneCode: code } = await chrome.storage.local.get(["phoneOn", "phoneCode"]);
-  return phoneOn && code ? code : null;
-}
-
-// Returns the Response, or null if the server could not be reached in time.
-async function phoneFetch(path, init = {}) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PHONE_TIMEOUT_MS);
-  try {
-    return await fetch(PHONE_ORIGIN + path, {
-      ...init,
-      signal: controller.signal,
-      cache: "no-store",
-      credentials: "omit",
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-// Send our place if it is newer and take theirs if it is newer, in one request.
-// Returns true if a newer place from the phone (or another computer) was applied.
-async function phoneSync() {
-  try {
-    const code = await phoneCode();
-    if (!code) return false;
-    const { verseKey, savedAt = 0 } = await chrome.storage.local.get(["verseKey", "savedAt"]);
-    const path = `/api/place/${code}`;
-    const res = verseKey && savedAt
-      ? await phoneFetch(path, { method: "PUT", body: JSON.stringify({ verseKey, savedAt }) })
-      : await phoneFetch(path);
-    if (!res) return false;
-    if (res.status === 404) {
-      await phoneForget(); // turned off elsewhere, or expired
-      return false;
-    }
-    if (!res.ok) return false;
-    const remote = await res.json();
-    if (remote.verseKey && remote.savedAt > savedAt && remote.verseKey !== verseKey) {
-      await chrome.storage.local.set({ verseKey: remote.verseKey, savedAt: remote.savedAt });
-      return true;
-    }
-  } catch (err) {
-    // keep working locally
-  }
-  return false;
-}
-
-async function phoneForget() {
-  await chrome.storage.local.remove(["phoneOn", "phoneCode", "phoneWanted"]);
-  try { await chrome.storage.sync.remove("phoneCode"); } catch (err) { /* ignore */ }
-}
-
-// Another computer turned the phone off or paired again: do the same here.
-async function followPhoneCodeFromSync(code) {
-  const { phoneOn, phoneCode: mine } = await chrome.storage.local.get(["phoneOn", "phoneCode"]);
-  if (!phoneOn) return;
-  if (!code) await chrome.storage.local.remove(["phoneOn", "phoneCode"]);
-  else if (code !== mine) await chrome.storage.local.set({ phoneCode: code });
-}
-
-let enabling = null;
-function enablePhone() {
-  if (!enabling) enabling = doEnablePhone().finally(() => { enabling = null; });
-  return enabling;
-}
-
-async function doEnablePhone() {
-  const local = await chrome.storage.local.get(["phoneOn", "phoneCode", "verseKey", "savedAt"]);
-  if (local.phoneOn && local.phoneCode) return { ok: true, code: local.phoneCode };
-
-  // Already set up on another of your computers? Join the same code so they all follow one place.
-  let code = null;
-  try { code = (await chrome.storage.sync.get("phoneCode")).phoneCode || null; } catch (err) { /* ignore */ }
-  if (code) {
-    const res = await phoneFetch(`/api/place/${code}`);
-    if (!res) return { ok: false, error: "offline" };
-    if (res.status === 404) code = null;
-    else if (!res.ok) return { ok: false, error: "server" };
-  }
-
-  if (!code) {
-    const body = local.verseKey && local.savedAt ? { verseKey: local.verseKey, savedAt: local.savedAt } : {};
-    const res = await phoneFetch("/api/pair", { method: "POST", body: JSON.stringify(body) });
-    if (!res) return { ok: false, error: "offline" };
-    if (!res.ok) return { ok: false, error: "server" };
-    code = (await res.json()).code;
-  }
-
-  await chrome.storage.local.set({ phoneOn: true, phoneCode: code });
-  await chrome.storage.local.remove("phoneWanted");
-  try { await chrome.storage.sync.set({ phoneCode: code }); } catch (err) { /* ignore */ }
-  await phoneSync(); // take a newer place from the phone straight away, if there is one
-  return { ok: true, code };
-}
-
-// Turning off deletes your place from the server, so it only counts once the server confirms.
-async function disablePhone() {
-  const { phoneCode: code } = await chrome.storage.local.get("phoneCode");
-  if (code) {
-    const res = await phoneFetch(`/api/place/${code}`, { method: "DELETE" });
-    if (!res) return { ok: false, error: "offline" };
-    // 204 = deleted, 404 = already gone; anything else, try again later
-    if (!res.ok && res.status !== 404) return { ok: false, error: "server" };
-  }
-  await phoneForget();
-  try { await chrome.permissions.remove({ origins: [PHONE_ORIGIN + "/*"] }); } catch (err) { /* ignore */ }
-  return { ok: true };
-}
-
-// The permission prompt can close the toolbar menu, so finish pairing here once it is granted.
-if (chrome.permissions && chrome.permissions.onAdded) {
-  chrome.permissions.onAdded.addListener(async (permissions) => {
-    if (!(permissions.origins || []).some((o) => o.startsWith(PHONE_ORIGIN))) return;
-    const { phoneWanted } = await chrome.storage.local.get("phoneWanted");
-    if (phoneWanted) enablePhone();
-  });
-}
 
 
 // ---- Once-a-day return to the Quran after the computer wakes ----
@@ -328,11 +184,7 @@ chrome.idle.onStateChanged.addListener(async (state) => {
 // Sleep without a lock screen: the 1-minute timer stops while the computer
 // sleeps, so a gap between ticks means it just woke up.
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === SYNC_ALARM) {
-    await pushToSync();
-    await phoneSync();
-    return;
-  }
+  if (alarm.name === SYNC_ALARM) return pushToSync();
   if (alarm.name !== TICK_ALARM) return;
   const { lastTick } = await chrome.storage.local.get("lastTick");
   const now = Date.now();
@@ -351,19 +203,9 @@ chrome.runtime.onStartup.addListener(async () => {
   await openQuran();
 });
 
-// The toolbar menu asks us to open the Quran, or to turn the phone link on or off.
-// Only the extension's own pages may do this, never a content script on a web page.
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (!msg || sender.id !== chrome.runtime.id || !(sender.url || "").startsWith(chrome.runtime.getURL(""))) return;
-  if (msg.type === "qr-open") {
-    openQuran();
-  } else if (msg.type === "qr-phone-enable") {
-    enablePhone().then(sendResponse);
-    return true; // answer asynchronously
-  } else if (msg.type === "qr-phone-disable") {
-    disablePhone().then(sendResponse);
-    return true;
-  }
+// The toolbar popup asks us to open the Quran at the last verse.
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg && msg.type === "qr-open") openQuran();
 });
 
 // Keyboard shortcut (default Alt+Shift+Q, changeable at chrome://extensions/shortcuts).
