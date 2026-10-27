@@ -50,7 +50,7 @@ Works in Chrome and other Chromium browsers (Edge, Brave, Ecosia and so on).
 
 ## Install
 
-**From the Chrome Web Store:** coming soon. The link will be added here once it is listed.
+**From the Chrome Web Store:** [store.google.com](https://chromewebstore.google.com/detail/quran-resume/mkmhldkeenlbbmhgpcomibpnajbmfkje)
 
 **Or by hand:**
 
