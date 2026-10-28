@@ -514,7 +514,9 @@ async function getJSON(url) {
 // ---- reading settings: Arabic script and theme ----
 
 const SCRIPTS = {
-  uthmani: { field: 'text_uthmani', font: 'UthmanicHafs', sample: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ' },
+  // qpc_uthmani_hafs is the text encoded for the KFGQPC font (text_uthmani isn't,
+  // and shows broken marks in it), ending with the verse number the font draws as an ayah sign.
+  uthmani: { field: 'qpc_uthmani_hafs', font: 'UthmanicHafs', sample: 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ' },
   indopak: { field: 'text_indopak_nastaleeq', font: 'IndoPak', sample: 'بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِیْمِ' },
   // Tajweed is drawn the way quran.com draws it: the King Fahd Complex's
   // colour-coded Mushaf fonts, one per page, with each word given as glyph codes.
@@ -592,7 +594,7 @@ async function openChapter(id, verse, moved = false) {
   }
   const ch = chapters.find(c => c.id === id);
   const bismillah = ch?.bismillah_pre
-    ? '<div class="bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ</div>' : '';
+    ? '<div class="bismillah">بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ</div>' : '';
   const next = id < 114
     ? `<div class="next"><button class="btn" data-next="${id + 1}">Next: ${escapeHTML(chapters[id]?.name_simple || 'Surah ' + (id + 1))} →</button></div>` : '';
 
