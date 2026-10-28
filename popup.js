@@ -61,7 +61,7 @@ function phoneMessage(text) {
   $("phone-msg").hidden = !text;
 }
 
-const offlineText = "Couldn't reach the Quran Resume server. Check your connection and try again.";
+const offlineText = "Can't reach the server. Check your connection and try again.";
 
 // Draws the link as a QR code (dark squares on white, with the quiet border scanners need).
 function drawQr(canvas, text) {
@@ -87,53 +87,56 @@ function drawQr(canvas, text) {
 }
 
 let phones = 0;
+let codeUntil = 0; // while a link code is showing: when it expires
 let watchTimer = null;
 
+// Linked means a phone has joined. A pairing still waiting for its first phone
+// shows as not linked, with its code if one is showing.
 async function renderPhone() {
   const status = await chrome.runtime.sendMessage({ type: "qr-phone-status" });
-  const linked = !!(status && status.linked);
-  $("phone-off").hidden = linked;
+  const linked = !!(status && status.linked && (status.offline || status.phones > 0));
+  const showingCode = Date.now() < codeUntil;
+  phones = (status && status.phones) || 0;
+  $("phone-off").hidden = linked || showingCode;
   $("phone-on").hidden = !linked;
-  if (!linked) {
-    $("phone-code").hidden = true;
-    return status;
-  }
-  phones = status.phones || 0;
-  $("phone-on-text").textContent = status.offline
-    ? "Linked to your phone, but the server can't be reached right now."
-    : phones > 0
-      ? "Linked to your phone. Your place stays in sync, and the most recent place wins."
-      : "Not linked to a phone yet. Scan the code with your phone.";
-  $("phone-show").textContent = phones > 0 ? "Link another phone" : "Show a new code";
+  $("phone-show").hidden = showingCode;
+  $("phone-code").hidden = !showingCode;
+  $("phone-on-text").textContent = status && status.offline
+    ? "Linked, but offline right now."
+    : "Linked. Your place stays in sync.";
   return status;
 }
 
 async function showCode() {
   phoneMessage("");
-  $("phone-link").disabled = true;
+  $("phone-link").disabled = $("phone-show").disabled = true;
   const result = await chrome.runtime.sendMessage({ type: "qr-phone-code" });
-  $("phone-link").disabled = false;
+  $("phone-link").disabled = $("phone-show").disabled = false;
   if (!result || !result.ok) {
-    phoneMessage(result && result.offline ? offlineText : "Something went wrong on the server. Please try again.");
+    phoneMessage(result && result.offline ? offlineText : "Something went wrong. Please try again.");
     return;
   }
   const before = phones;
-  await renderPhone();
-  $("phone-code").hidden = false;
+  codeUntil = result.expiresAt || Date.now() + 10 * 60 * 1000;
   $("code").textContent = result.linkCode.replace(/^(\d{3})(\d{3})$/, "$1 $2");
   drawQr($("qr"), `${PHONE_ORIGIN}/?link=${result.linkCode}`);
+  await renderPhone();
   watchForPhone(before);
 }
 
-// While the code is showing, notice the phone joining and say so.
+// While the code is showing, notice the phone joining, or the code running out.
 function watchForPhone(before) {
   clearInterval(watchTimer);
   watchTimer = setInterval(async () => {
+    const expired = Date.now() >= codeUntil;
     const status = await renderPhone();
     if (status && status.linked && status.phones > before) {
+      codeUntil = 0;
       clearInterval(watchTimer);
-      $("phone-code").hidden = true;
-      phoneMessage("Your phone is linked.");
+      renderPhone();
+    } else if (expired) {
+      clearInterval(watchTimer);
+      phoneMessage("The code expired. Get a new one when you're ready.");
     }
   }, 3000);
 }
@@ -145,13 +148,14 @@ $("phone-show").addEventListener("click", showCode);
 $("phone-stop").addEventListener("click", async () => {
   phoneMessage("");
   clearInterval(watchTimer);
+  codeUntil = 0;
   $("phone-stop").disabled = true;
   const result = await chrome.runtime.sendMessage({ type: "qr-phone-off" });
   $("phone-stop").disabled = false;
   if (result && result.ok) {
     renderPhone();
   } else {
-    phoneMessage("Couldn't reach the server to delete your place. Try again when you're online.");
+    phoneMessage(offlineText);
   }
 });
 

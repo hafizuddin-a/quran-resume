@@ -135,26 +135,30 @@ async function linkedPhoneCode() {
   return phoneCode || null;
 }
 
-// Sends this computer's place and takes the phone's if it is newer.
-// Returns true if a newer place from the phone was applied.
+// Sends this computer's place, takes the phone's if it is newer, and returns
+// the server's answer ({ place, phones }). Throws if the server can't be reached.
+async function exchangeWithPhone(code) {
+  const { verseKey, savedAt = 0 } = await chrome.storage.local.get(["verseKey", "savedAt"]);
+  const out = await phoneApi("sync", verseKey && savedAt ? { code, verseKey, savedAt } : { code });
+  const { place } = out;
+  if (place && place.savedAt > savedAt && place.verseKey !== verseKey) {
+    await chrome.storage.local.set({ verseKey: place.verseKey, savedAt: place.savedAt });
+    // Move any open quran.com tab too, whatever noticed the change (menu, tab
+    // switch, wake): reading on in a tab left at the old place would save over it.
+    const url = urlForVerse(place.verseKey);
+    for (const tab of await chrome.tabs.query({ url: QURAN_MATCH })) chrome.tabs.update(tab.id, { url });
+  }
+  return out;
+}
+
 async function syncWithPhone() {
   const code = await linkedPhoneCode();
-  if (!code) return false;
+  if (!code) return;
   try {
-    const { verseKey, savedAt = 0 } = await chrome.storage.local.get(["verseKey", "savedAt"]);
-    const { place } = await phoneApi("sync", verseKey && savedAt ? { code, verseKey, savedAt } : { code });
-    if (place && place.savedAt > savedAt && place.verseKey !== verseKey) {
-      await chrome.storage.local.set({ verseKey: place.verseKey, savedAt: place.savedAt });
-      // Move any open quran.com tab too, whatever noticed the change (menu, tab
-      // switch, wake): reading on in a tab left at the old place would save over it.
-      const url = urlForVerse(place.verseKey);
-      for (const tab of await chrome.tabs.query({ url: QURAN_MATCH })) chrome.tabs.update(tab.id, { url });
-      return true;
-    }
+    await exchangeWithPhone(code);
   } catch (err) {
     if (err.status === 404) await chrome.storage.local.remove("phoneCode"); // the link was turned off
   }
-  return false;
 }
 
 // Starts a pairing if needed and returns a 6-digit code for a phone to join with.
@@ -177,8 +181,7 @@ async function phoneStatus() {
   const code = await linkedPhoneCode();
   if (!code) return { linked: false };
   try {
-    await syncWithPhone();
-    const { phones } = await phoneApi("sync", { code });
+    const { phones } = await exchangeWithPhone(code);
     return { linked: true, phones };
   } catch (err) {
     if (err.status === 404) {

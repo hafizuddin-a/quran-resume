@@ -72,9 +72,14 @@ const validTimes = t => Array.isArray(t) && t.length === 3 && t.every(x => /^([0
 
 // ---- phones (reminders) ----
 
-async function getPhone(env, id) {
+// Reading a phone that was never saved returns the defaults without storing a
+// row, so visitors who only look at Settings leave nothing behind.
+async function getPhone(env, id, create = true) {
   if (typeof id !== 'string' || id.length < 16 || id.length > 64) throw httpError(400, 'Missing phone id.');
   let row = await env.DB.prepare('SELECT * FROM phones WHERE id = ?').bind(id).first();
+  if (!row && !create) {
+    return { id, subscription: null, enabled: 0, times: JSON.stringify(DEFAULT_TIMES), time_zone: 'UTC', day: localNow('UTC').date, sent: '[]', acked: 0 };
+  }
   if (!row) {
     await env.DB.prepare('INSERT INTO phones (id, times) VALUES (?, ?)').bind(id, JSON.stringify(DEFAULT_TIMES)).run();
     row = await env.DB.prepare('SELECT * FROM phones WHERE id = ?').bind(id).first();
@@ -102,7 +107,12 @@ const phoneStatus = (env, row) => ({
 const vapid = env => ({ publicKey: env.VAPID_PUBLIC_KEY, privateJwk: JSON.parse(env.VAPID_PRIVATE_JWK), subject: env.VAPID_SUBJECT });
 
 async function push(env, row, payload) {
-  const status = await sendPush(JSON.parse(row.subscription), payload, vapid(env));
+  let status;
+  try {
+    status = await sendPush(JSON.parse(row.subscription), payload, vapid(env));
+  } catch {
+    return false; // the push service couldn't be reached
+  }
   if (status === 404 || status === 410) {
     await env.DB.prepare('UPDATE phones SET subscription = NULL WHERE id = ?').bind(row.id).run(); // phone unsubscribed
   }
@@ -236,7 +246,7 @@ const routes = {
   'GET /api/config': env => ({ publicKey: env.VAPID_PUBLIC_KEY }),
 
   // Phone: reminder settings and today's state.
-  'POST /api/status': async (env, { phone }) => phoneStatus(env, await getPhone(env, phone)),
+  'POST /api/status': async (env, { phone }) => phoneStatus(env, await getPhone(env, phone, false)),
 
   'POST /api/subscribe': async (env, { phone, subscription, settings = {} }) => {
     if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) throw httpError(400, 'Missing subscription.');
@@ -260,7 +270,7 @@ const routes = {
   },
 
   'POST /api/ack': async (env, { phone, kind, date }) => {
-    const row = await getPhone(env, phone);
+    const row = await getPhone(env, phone, false);
     if (kind === 'reminder' && date === row.day && !row.acked) {
       await env.DB.prepare('UPDATE phones SET acked = 1 WHERE id = ?').bind(phone).run();
       row.acked = 1;
@@ -270,11 +280,12 @@ const routes = {
   },
 
   'POST /api/test': async (env, { phone }) => {
-    const row = await getPhone(env, phone);
-    if (!row.subscription) throw httpError(400, 'no phone subscribed');
-    await push(env, row, {
+    const row = await getPhone(env, phone, false);
+    if (!row.subscription) throw httpError(400, 'Turn on reminders first.');
+    const ok = await push(env, row, {
       kind: 'test', phone, title: 'Test reminder', body: 'Notifications are working. This one doesn’t affect today’s reminders.',
     });
+    if (!ok) throw httpError(502, 'Couldn’t reach this phone. Turn reminders off and on again.');
     return phoneStatus(env, row);
   },
 
@@ -307,6 +318,13 @@ const routes = {
   'POST /api/sync': async (env, { code, verseKey, savedAt }) => {
     const pair = await mergePlace(env, await getPair(env, code), verseKey, savedAt);
     return { place: placeOf(pair), phones: pair.phones };
+  },
+
+  // Phone: unlink this phone, so the extension stops showing it as linked.
+  'POST /api/leave': async (env, { code }) => {
+    await getPair(env, code);
+    await env.DB.prepare('UPDATE pairs SET phones = MAX(phones - 1, 0) WHERE code = ?').bind(code).run();
+    return { ok: true };
   },
 
   // Extension: turn the phone link off and delete the stored place.

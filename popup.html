@@ -59,27 +59,20 @@
   <section id="phone">
     <div class="label">On your phone</div>
     <div id="phone-off">
-      <p class="desc">Read in the Quran Resume phone app and carry on here, or the other way round. Your place saves automatically on both.</p>
+      <p class="desc">Keep your place in sync with your phone.</p>
       <button class="primary" id="phone-link">Link your phone</button>
-      <small class="note">Connects to the Quran Resume server. Only your last verse is sent.</small>
     </div>
     <div id="phone-on" hidden>
-      <p class="desc" id="phone-on-text">Linked to your phone. Your place stays in sync.</p>
-      <div id="phone-code" hidden>
-        <div class="qrrow">
-          <canvas id="qr" width="120" height="120" aria-label="QR code to link your phone" role="img"></canvas>
-          <div>
-            <p class="desc">Scan with your phone's camera. In the iPhone Home Screen app, type the code in Settings instead.</p>
-            <div class="code" id="code"></div>
-            <small class="note">Works once, for 10 minutes.</small>
-          </div>
-        </div>
+      <p class="desc" id="phone-on-text">Linked. Your place stays in sync.</p>
+      <div class="actions"><button class="secondary" id="phone-show">Link another phone</button><button class="secondary" id="phone-stop">Unlink</button></div>
+    </div>
+    <div class="qrrow" id="phone-code" hidden>
+      <canvas id="qr" width="120" height="120" aria-label="QR code to link your phone" role="img"></canvas>
+      <div>
+        <p class="desc">Scan with your phone's camera, or enter this code in the app.</p>
+        <div class="code" id="code"></div>
+        <small class="note">Works for 10 minutes.</small>
       </div>
-      <div class="links">
-        <button class="hint" id="phone-show">Link another phone</button>
-        <button class="hint" id="phone-stop">Turn off</button>
-      </div>
-      <small class="note">Turning off deletes your place from the server.</small>
     </div>
     <p class="msg" id="phone-msg" hidden></p>
   </section>

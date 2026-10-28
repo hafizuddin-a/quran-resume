@@ -238,7 +238,7 @@
       <div class="card">
         <h2>Your computer</h2>
         <div id="link-off">
-          <p class="hint">Scan the QR code in Quran Resume, or enter its code.</p>
+          <p class="hint">Sync your place with the Quran Resume extension on your computer. Scan its QR code, or enter its code here.</p>
           <form class="link-row" id="link-form">
             <input id="link-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" aria-label="6-digit code">
             <button class="btn" type="submit">Link</button>
@@ -344,7 +344,7 @@ function setCurrent(chapter, verse, moved = false) {
   current = { chapter, verse };
   $pos.textContent = `${chapter}:${verse}`;
   $open.href = `https://quran.com/${chapter}?startingVerse=${verse}`;
-  history.replaceState(null, '', `?chapter=${chapter}&verse=${verse}${carryPair()}`);
+  history.replaceState(history.state, '', `?chapter=${chapter}&verse=${verse}${carryPair()}`);
   if (moved) {
     savedAt = Date.now();
     schedulePush();
@@ -497,7 +497,8 @@ async function openChapter(id, verse, moved = false) {
   try {
     verses = await fetchChapterVerses(id);
   } catch {
-    $main.innerHTML = '<div class="status">Couldn’t load this surah. Check your connection and try again.</div>';
+    $main.innerHTML = `<div class="status">Couldn’t load this surah. Check your connection.
+      <div class="next"><button class="btn" data-retry="${id},${verse},${moved ? 1 : 0}">Try again</button></div></div>`;
     restoring = false;
     return;
   }
@@ -597,7 +598,7 @@ document.getElementById('leave-go').addEventListener('click', () => $leave.close
 $leave.addEventListener('click', e => { if (e.target === $leave) $leave.close(); });
 
 // ---- settings: daily reminders ----
-// Scheduling and the "skip after Got it" rule live in server.js; this page
+// Scheduling and the "skip once acknowledged" rule live in src/worker.js; this page
 // subscribes the phone to push and edits the reminder times.
 
 const $settings = document.getElementById('settings');
@@ -636,18 +637,38 @@ function phoneId() {
 }
 const base64Url = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
+// Errors always carry a message fit to show: browsers word a lost connection
+// differently (Chrome "Failed to fetch", Safari "Load failed").
+const OFFLINE = 'Can’t reach the server. Check your connection and try again.';
 async function api(path, body) {
-  const res = await fetch(`api/${path}`, body === undefined ? {} : {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
-  });
-  const out = await res.json();
-  if (!res.ok) throw Object.assign(new Error(out.error || res.status), { status: res.status });
+  let res;
+  try {
+    res = await fetch(`api/${path}`, body === undefined ? {} : {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error(OFFLINE);
+  }
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(out.error || 'Something went wrong. Please try again.'), { status: res.status });
   return out;
 }
 
 function base64ToBytes(s) {
   const b64 = (s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/');
   return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
+
+// Reminders follow the phone's time zone: when it changes (travel), tell the
+// server once. Costs nothing on the usual open.
+const ZONE_KEY = 'quran-zone';
+const localZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+function followTimeZone() {
+  try {
+    if (window.Notification?.permission !== 'granted' || localStorage.getItem(ZONE_KEY) === localZone()) return;
+    api('settings', { phone: phoneId(), timeZone: localZone() })
+      .then(() => localStorage.setItem(ZONE_KEY, localZone())).catch(() => {});
+  } catch {}
 }
 
 const fmtTime = t => new Date(`2000-01-01T${t}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -675,7 +696,7 @@ async function refreshReminders() {
     if (isIOS && !isStandalone) $remMsg.textContent = IOS_INSTALL_MSG;
   } catch {
     $remToday.textContent = '';
-    $remMsg.textContent = 'Can’t reach the Quran Resume server. Check your connection.';
+    $remMsg.textContent = OFFLINE;
   }
 }
 
@@ -696,11 +717,13 @@ async function enableReminders() {
     // iOS Simulator, which can't create web push subscriptions).
     throw new Error('Couldn’t set up notifications on this device. Check your connection and try again.');
   }
-  return api('subscribe', {
+  const out = await api('subscribe', {
     phone: phoneId(),
     subscription: sub.toJSON(),
-    settings: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+    settings: { timeZone: localZone() },
   });
+  try { localStorage.setItem(ZONE_KEY, localZone()); } catch {}
+  return out;
 }
 
 $remOn.addEventListener('change', async () => {
@@ -709,7 +732,7 @@ $remOn.addEventListener('change', async () => {
     renderReminders($remOn.checked ? await enableReminders() : await api('settings', { phone: phoneId(), enabled: false }));
   } catch (err) {
     $remOn.checked = !$remOn.checked;
-    $remMsg.textContent = err.message === 'Failed to fetch' ? 'Can’t reach the Quran Resume server. Check your connection.' : err.message;
+    $remMsg.textContent = err.message;
   }
 });
 
@@ -728,7 +751,7 @@ async function sendTest($msg) {
     await api('test', { phone: phoneId() });
     return true;
   } catch (err) {
-    $msg.textContent = err.message === 'no phone subscribed' ? 'Turn on reminders first.' : 'Couldn’t send. Check your connection and try again.';
+    $msg.textContent = err.message;
     return false;
   }
 }
@@ -781,14 +804,15 @@ document.getElementById('link-form').addEventListener('submit', async e => {
     } else {
       syncPlace(true);
     }
-    setSettingsOpen(false);
+    closeSettings();
     showToast('Linked to your computer');
   } catch (err) {
-    $linkMsg.textContent = err.message === 'Failed to fetch' ? 'Couldn’t reach the server. Check your connection and try again.' : err.message;
+    $linkMsg.textContent = err.message;
   }
 });
 
 document.getElementById('link-forget').addEventListener('click', () => {
+  api('leave', { code: pairCode() }).catch(() => {});
   forgetPair();
   renderLink();
 });
@@ -802,8 +826,18 @@ function setSettingsOpen(open) {
     $linkMsg.textContent = '';
   }
 }
-document.getElementById('settings-open').addEventListener('click', () => setSettingsOpen(true));
-document.getElementById('settings-close').addEventListener('click', () => setSettingsOpen(false));
+// Settings gets its own history entry, so the phone's back button closes it
+// instead of leaving the app.
+function closeSettings() {
+  if (history.state?.settings) history.back(); // popstate below hides it
+  else setSettingsOpen(false);
+}
+addEventListener('popstate', () => { if (!$settings.hidden) setSettingsOpen(false); });
+document.getElementById('settings-open').addEventListener('click', () => {
+  history.pushState({ settings: true }, '');
+  setSettingsOpen(true);
+});
+document.getElementById('settings-close').addEventListener('click', closeSettings);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && !$settings.hidden) refreshReminders();
 });
@@ -812,6 +846,11 @@ $surah.addEventListener('change', () => openChapter(+$surah.value, 1, true));
 $main.addEventListener('click', e => {
   const n = e.target.closest('[data-next]')?.dataset.next;
   if (n) openChapter(+n, 1, true);
+  const retry = e.target.closest('[data-retry]')?.dataset.retry;
+  if (retry) {
+    const [id, verse, moved] = retry.split(',').map(Number);
+    openChapter(id, verse, !!moved);
+  }
 });
 
 (async function init() {
@@ -833,7 +872,7 @@ $main.addEventListener('click', e => {
       await linkWithCode(linkCode);
       linkedNow = true;
     } catch (err) {
-      showToast(err.message === 'Failed to fetch' ? 'Couldn’t reach the server to link. Try again.' : err.message);
+      showToast(err.message);
     }
     if (!start.moved) start = readSaved() || { ...DEFAULT, savedAt: 0 }; // drop the ?link address
   }
@@ -849,6 +888,7 @@ $main.addEventListener('click', e => {
     }
   }
   if (linkedNow) showToast('Linked to your computer');
+  followTimeZone();
 
   try {
     chapters = (await getJSON(`${API}/chapters?language=en`)).chapters;
@@ -884,6 +924,7 @@ let deferredInstall = null;
 addEventListener('beforeinstallprompt', e => {
   e.preventDefault(); // we offer it ourselves, right after linking
   deferredInstall = e;
+  if ($install.open) renderInstall();
 });
 // Once the app is installed, a browser tab of it is just a stale second copy.
 // Close it (browsers allow that for a tab with a one-page history, like one
@@ -905,17 +946,18 @@ try {
   else channel.onmessage = e => { if (e.data === 'app-opened') retireThisTab(); };
 } catch {}
 
-// Swaps the Install button for a one-line instruction, where the browser can't install for us.
-function installHow(html) {
-  document.getElementById('install-text').innerHTML = html;
-  document.getElementById('install-go').hidden = true;
-  document.getElementById('install-later').textContent = 'OK';
+// An Install button where the browser can install for us, otherwise a one-line instruction.
+function renderInstall() {
+  const how = isIOS ? 'Tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.'
+    : !deferredInstall ? 'Tap <strong>⋮</strong>, then <strong>Install app</strong>.' : '';
+  document.getElementById('install-text').innerHTML = how || 'Open your Quran in one tap.';
+  document.getElementById('install-go').hidden = !!how;
+  document.getElementById('install-later').textContent = how ? 'OK' : 'Not now';
 }
 
 function showInstall() {
   if (typeof $install.showModal !== 'function') return;
-  if (isIOS) installHow('Tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.');
-  else if (!deferredInstall) installHow('Tap <strong>⋮</strong>, then <strong>Install app</strong>.');
+  renderInstall();
   $install.showModal();
 }
 
