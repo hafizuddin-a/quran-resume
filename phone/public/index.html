@@ -138,7 +138,7 @@
     .seg span { display: block; text-align: center; padding: 7px 4px; border-radius: 7px; font-size: 14px; font-weight: 500; color: var(--muted); }
     .seg input:checked + span { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgb(0 0 0 / .15); }
     .seg input:focus-visible + span { outline: 2px solid var(--accent); }
-    .preview { margin: 14px 0 0; font-size: 26px; direction: rtl; text-align: center; }
+    .preview { margin: 6px 0 2px; font-size: 26px; direction: rtl; text-align: center; }
     .card h3 + .seg { margin-top: 8px; }
     .card h3 { margin: 18px 0 0; font-size: 14px; font-weight: 500; color: var(--muted); }
     .en { font-size: 16px; line-height: 1.65; color: var(--text); margin: 0; }
@@ -261,12 +261,12 @@
       <div class="card">
         <h2>Reading</h2>
         <h3>Arabic script</h3>
+        <p class="ar preview" id="script-preview"></p>
         <div class="seg" role="radiogroup" aria-label="Arabic script">
           <label><input type="radio" name="script" value="uthmani"><span>Uthmani</span></label>
           <label><input type="radio" name="script" value="indopak"><span>IndoPak</span></label>
           <label><input type="radio" name="script" value="tajweed"><span>Tajweed</span></label>
         </div>
-        <p class="ar preview" id="script-preview"></p>
         <h3>Theme</h3>
         <div class="seg" role="radiogroup" aria-label="Theme">
           <label><input type="radio" name="theme" value="system"><span>Auto</span></label>
