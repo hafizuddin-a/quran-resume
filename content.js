@@ -80,17 +80,21 @@
   // Positions change on scroll (including the long scrollable verse list).
   window.addEventListener("scroll", scheduleSave, { passive: true, capture: true });
 
-  // Flush immediately when the tab is hidden or closed.
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-      if (saveTimer !== null) clearTimeout(saveTimer);
-      save();
-    }
-  });
-  window.addEventListener("pagehide", () => {
+  // Flush immediately when the tab is hidden or closed, and have a linked phone
+  // get it now rather than after the usual few seconds.
+  function flush() {
     if (saveTimer !== null) clearTimeout(saveTimer);
     save();
+    try {
+      chrome.runtime.sendMessage({ type: "qr-phone-push" }).catch(() => {});
+    } catch (err) {
+      // Extension was reloaded while this page was open; ignore.
+    }
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flush();
   });
+  window.addEventListener("pagehide", flush);
 })();
 
 // Prompt shown by the extension after its once-a-day return to the Quran, with a

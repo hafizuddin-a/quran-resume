@@ -1,0 +1,27 @@
+# Quran Resume phone server: the phone app, reminders and place sync.
+# Deploy with: npx wrangler deploy   (secrets: VAPID_PRIVATE_JWK, set once with wrangler secret put)
+name = "quran-resume"
+main = "src/worker.js"
+compatibility_date = "2026-10-01"
+
+# The phone app. Files here are served directly; only /api/* runs the Worker.
+[assets]
+directory = "public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "quran-resume"
+database_id = "a5ee3ac1-d941-4fd6-bead-48d7de288950"
+
+# Every minute: sends whatever reminders are due.
+[triggers]
+crons = ["* * * * *"]
+
+# Lets the cron hand batches of reminders to separate runs of this same Worker.
+[[services]]
+binding = "SELF"
+service = "quran-resume"
+
+[vars]
+VAPID_PUBLIC_KEY = "BMt6b5GC4AAkXztD5NP083Y2lTE98RQaqGOdVCMkH3HZllX-lkKYde9SncgwCEYs56gFuJ_WqlE937gtvttIatA"
+VAPID_SUBJECT = "https://quran-resume.hello-hafiz.workers.dev"

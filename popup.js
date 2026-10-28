@@ -55,9 +55,115 @@ $("open").addEventListener("click", async () => {
   window.close();
 });
 
+// ---- On your phone ----
+function phoneMessage(text) {
+  $("phone-msg").textContent = text;
+  $("phone-msg").hidden = !text;
+}
+
+const offlineText = "Couldn't reach the Quran Resume server. Check your connection and try again.";
+
+// Draws the link as a QR code (dark squares on white, with the quiet border scanners need).
+function drawQr(canvas, text) {
+  const qr = qrcode(0, "M");
+  qr.addData(text);
+  qr.make();
+  const n = qr.getModuleCount();
+  const quiet = 2;
+  const dpr = window.devicePixelRatio || 1;
+  const cell = Math.max(1, Math.floor((120 * dpr) / (n + quiet * 2)));
+  const px = cell * (n + quiet * 2);
+  canvas.width = px;
+  canvas.height = px;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, px, px);
+  ctx.fillStyle = "#000";
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (qr.isDark(r, c)) ctx.fillRect((c + quiet) * cell, (r + quiet) * cell, cell, cell);
+    }
+  }
+}
+
+let phones = 0;
+let watchTimer = null;
+
+async function renderPhone() {
+  const status = await chrome.runtime.sendMessage({ type: "qr-phone-status" });
+  const linked = !!(status && status.linked);
+  $("phone-off").hidden = linked;
+  $("phone-on").hidden = !linked;
+  if (!linked) {
+    $("phone-code").hidden = true;
+    return status;
+  }
+  phones = status.phones || 0;
+  $("phone-on-text").textContent = status.offline
+    ? "Linked to your phone, but the server can't be reached right now."
+    : phones > 0
+      ? "Linked to your phone. Your place stays in sync, and the most recent place wins."
+      : "Not linked to a phone yet. Scan the code with your phone.";
+  $("phone-show").textContent = phones > 0 ? "Link another phone" : "Show a new code";
+  return status;
+}
+
+async function showCode() {
+  phoneMessage("");
+  $("phone-link").disabled = true;
+  const result = await chrome.runtime.sendMessage({ type: "qr-phone-code" });
+  $("phone-link").disabled = false;
+  if (!result || !result.ok) {
+    phoneMessage(result && result.offline ? offlineText : "Something went wrong on the server. Please try again.");
+    return;
+  }
+  const before = phones;
+  await renderPhone();
+  $("phone-code").hidden = false;
+  $("code").textContent = result.linkCode.replace(/^(\d{3})(\d{3})$/, "$1 $2");
+  drawQr($("qr"), `${PHONE_ORIGIN}/?link=${result.linkCode}`);
+  watchForPhone(before);
+}
+
+// While the code is showing, notice the phone joining and say so.
+function watchForPhone(before) {
+  clearInterval(watchTimer);
+  watchTimer = setInterval(async () => {
+    const status = await renderPhone();
+    if (status && status.linked && status.phones > before) {
+      clearInterval(watchTimer);
+      $("phone-code").hidden = true;
+      phoneMessage("Your phone is linked.");
+    }
+  }, 3000);
+}
+
+$("phone-link").addEventListener("click", showCode);
+
+$("phone-show").addEventListener("click", showCode);
+
+$("phone-stop").addEventListener("click", async () => {
+  phoneMessage("");
+  clearInterval(watchTimer);
+  $("phone-stop").disabled = true;
+  const result = await chrome.runtime.sendMessage({ type: "qr-phone-off" });
+  $("phone-stop").disabled = false;
+  if (result && result.ok) {
+    renderPhone();
+  } else {
+    phoneMessage("Couldn't reach the server to delete your place. Try again when you're online.");
+  }
+});
+
 $("dev").addEventListener("click", () => {
   chrome.tabs.create({ url: INSTAGRAM_URL });
   window.close();
 });
 
+// A place synced in from the phone or another computer while the menu is open.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.verseKey) render();
+});
+
 render();
+renderPhone();

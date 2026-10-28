@@ -3,3 +3,7 @@
 dist/
 node_modules/
 old-files-bin/
+phone/data.json
+.claude/
+phone/.wrangler/
+phone/.dev.vars
