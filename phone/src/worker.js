@@ -242,6 +242,25 @@ function manifestFor(pair) {
   }), { headers: { 'content-type': 'application/manifest+json', 'cache-control': 'no-store' } });
 }
 
+// Tajweed Mushaf page fonts (King Fahd Complex, QPC V4), as quran.com serves
+// them. quran.com doesn't allow other sites to load its fonts, so they come
+// through here; Cloudflare's cache keeps them, so each is fetched once.
+const PAGE_FONT = /^\/qpc\/(colrv1|ot-svg\/light|ot-svg\/dark)\/p(\d{1,3})\.woff2$/;
+async function pageFont(request, url, ctx) {
+  const m = PAGE_FONT.exec(url.pathname);
+  if (!m || +m[2] < 1 || +m[2] > 604) return new Response('Not found', { status: 404 });
+  const cache = caches.default;
+  const hit = await cache.match(request);
+  if (hit) return hit;
+  const res = await fetch(`https://quran.com/fonts/quran/hafs/v4/${m[1]}/woff2/p${m[2]}.woff2`);
+  if (!res.ok) return new Response('Font unavailable', { status: 502 });
+  const out = new Response(res.body, {
+    headers: { 'content-type': 'font/woff2', 'cache-control': 'public, max-age=31536000, immutable' },
+  });
+  ctx.waitUntil(cache.put(request, out.clone()));
+  return out;
+}
+
 const routes = {
   'GET /api/config': env => ({ publicKey: env.VAPID_PUBLIC_KEY }),
 
@@ -337,10 +356,11 @@ const routes = {
 
 export default {
   // Static files in public/ are served before this runs; only /api/* reaches here.
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/api/manifest') return manifestFor(url.searchParams.get('pair'));
+    if (request.method === 'GET' && url.pathname.startsWith('/qpc/')) return pageFont(request, url, ctx);
     // Called by the cron below through a service binding. Safe if called by
     // anyone else: it only sends reminders that are already due.
     if (request.method === 'POST' && url.pathname === '/internal/remind') {

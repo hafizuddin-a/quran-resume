@@ -19,6 +19,8 @@
         var standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
         if (code && ios && !standalone) href = 'api/manifest?pair=' + encodeURIComponent(code);
       } catch (e) {}
+      var theme = localStorage.getItem('quran-theme');
+      if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
       var link = document.createElement('link');
       link.rel = 'manifest';
       link.href = href;
@@ -32,8 +34,15 @@
   <meta name="apple-mobile-web-app-title" content="Quran">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
+    /* The fonts quran.com uses, served from this app so they work offline. */
+    @font-face { font-family: UthmanicHafs; src: url(fonts/UthmanicHafs1Ver18.woff2) format("woff2"); font-display: swap; }
+    @font-face { font-family: IndoPak; src: url(fonts/indopak-nastaleeq-waqf-lazim-v4.2.1.woff2) format("woff2"); font-display: swap; }
+    /* Native controls (time pickers, scrollbars) follow the theme too. */
+    :root { color-scheme: light dark; }
+    :root[data-theme="light"] { color-scheme: light; }
+    :root[data-theme="dark"] { color-scheme: dark; }
     :root {
       --bg: #f7f4ec;
       --surface: #fffdf8;
@@ -103,7 +112,7 @@
       padding: calc(var(--header-h) + env(safe-area-inset-top) + 16px) 16px 40vh;
     }
     .bismillah {
-      font-family: "Amiri Quran", serif; font-size: 30px; text-align: center;
+      font-family: UthmanicHafs, serif; font-size: 30px; text-align: center;
       margin: 8px 0 24px; direction: rtl;
     }
     .verse {
@@ -115,9 +124,23 @@
       border-radius: 6px; padding: 2px 8px; font-variant-numeric: tabular-nums;
     }
     .ar {
-      font-family: "Amiri Quran", serif; font-size: 30px; line-height: 2.3;
+      font-family: UthmanicHafs, serif; font-size: 30px; line-height: 2.1;
       direction: rtl; text-align: right; margin: 6px 0 10px;
     }
+    .indopak .ar, .indopak .bismillah, .ar.indopak { font-family: IndoPak, serif; line-height: 2.4; }
+    .ar.qpc { line-height: 2; word-spacing: 0; }
+    :root[data-theme="dark"] .qpc { font-palette: --qpc-dark; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .qpc { font-palette: --qpc-dark; } }
+    /* Segmented choice, like the platform's own. */
+    .seg { display: flex; margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 3px; background: var(--bg); }
+    .seg label { flex: 1; position: relative; }
+    .seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+    .seg span { display: block; text-align: center; padding: 7px 4px; border-radius: 7px; font-size: 14px; font-weight: 500; color: var(--muted); }
+    .seg input:checked + span { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgb(0 0 0 / .15); }
+    .seg input:focus-visible + span { outline: 2px solid var(--accent); }
+    .preview { margin: 14px 0 0; font-size: 26px; direction: rtl; text-align: center; }
+    .card h3 + .seg { margin-top: 8px; }
+    .card h3 { margin: 18px 0 0; font-size: 14px; font-weight: 500; color: var(--muted); }
     .en { font-size: 16px; line-height: 1.65; color: var(--text); margin: 0; }
     .en sup { display: none; }
     .status { text-align: center; color: var(--muted); padding: 48px 0; }
@@ -236,6 +259,22 @@
         <p class="msg" id="rem-msg"></p>
       </div>
       <div class="card">
+        <h2>Reading</h2>
+        <h3>Arabic script</h3>
+        <div class="seg" role="radiogroup" aria-label="Arabic script">
+          <label><input type="radio" name="script" value="uthmani"><span>Uthmani</span></label>
+          <label><input type="radio" name="script" value="indopak"><span>IndoPak</span></label>
+          <label><input type="radio" name="script" value="tajweed"><span>Tajweed</span></label>
+        </div>
+        <p class="ar preview" id="script-preview"></p>
+        <h3>Theme</h3>
+        <div class="seg" role="radiogroup" aria-label="Theme">
+          <label><input type="radio" name="theme" value="system"><span>Auto</span></label>
+          <label><input type="radio" name="theme" value="light"><span>Light</span></label>
+          <label><input type="radio" name="theme" value="dark"><span>Dark</span></label>
+        </div>
+      </div>
+      <div class="card">
         <h2>Your computer</h2>
         <div id="link-off">
           <p class="hint">Sync your place with the Quran Resume extension on your computer. Scan its QR code, or enter its code here.</p>
@@ -250,7 +289,8 @@
         </div>
         <p class="msg" id="link-msg"></p>
       </div>
-      <p class="credit">Text and Saheeh International translation from <a href="https://quran.foundation" target="_blank" rel="noopener">Quran Foundation</a>.</p>
+      <p class="credit">Text and Saheeh International translation from <a href="https://quran.foundation" target="_blank" rel="noopener">Quran Foundation</a>.
+        Fonts: KFGQPC Uthmanic Hafs and the Tajweed Mushaf by the King Fahd Complex, and IndoPak Nastaleeq by <a href="https://quranwbw.com" target="_blank" rel="noopener">QuranWBW</a>.</p>
     </div>
   </section>
   <main id="main"><div class="status">Loading…</div></main>
@@ -471,13 +511,61 @@ async function getJSON(url) {
   return res.json();
 }
 
+// ---- reading settings: Arabic script and theme ----
+
+const SCRIPTS = {
+  uthmani: { field: 'text_uthmani', font: 'UthmanicHafs', sample: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ' },
+  indopak: { field: 'text_indopak_nastaleeq', font: 'IndoPak', sample: 'بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِیْمِ' },
+  // Tajweed is drawn the way quran.com draws it: the King Fahd Complex's
+  // colour-coded Mushaf fonts, one per page, with each word given as glyph codes.
+  tajweed: { words: true, font: 'UthmanicHafs', sample: [{ code_v2: 'ﱁ ﱂ ﱃ ﱄ ﱅ', v2_page: 1 }] },
+};
+const pref = (key, fallback, allowed) => {
+  try { const v = localStorage.getItem(key); return allowed.includes(v) ? v : fallback; } catch { return fallback; }
+};
+let script = pref('quran-script', 'uthmani', Object.keys(SCRIPTS));
+
+// The page fonts come in colour formats: COLRv1 for Chrome, and SVG (one set for
+// light, one for dark) for Safari, which doesn't draw COLRv1. They're served
+// through this app's server, which caches them.
+const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|Chromium|Android/.test(navigator.userAgent);
+const darkNow = () => document.documentElement.dataset.theme === 'dark'
+  || (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
+const qpcVariant = () => (isSafari ? `ot-svg/${darkNow() ? 'dark' : 'light'}` : 'colrv1');
+const pageFonts = new Map();
+function pageFont(page) {
+  const family = `qpc-${qpcVariant().replace('/', '-')}-p${page}`;
+  if (!pageFonts.has(family)) {
+    const face = new FontFace(family, `url(qpc/${qpcVariant()}/p${page}.woff2)`, { display: 'block' });
+    document.fonts.add(face);
+    pageFonts.set(family, face.load().catch(() => {}));
+    // The colour fonts carry a dark palette too (palette 1); name it for every page font.
+    let style = document.getElementById('qpc-palette');
+    if (!style) document.head.append(style = Object.assign(document.createElement('style'), { id: 'qpc-palette' }));
+    style.textContent = `@font-palette-values --qpc-dark { font-family: ${[...pageFonts.keys()].map(f => `'${f}'`).join(', ')}; base-palette: 1; }`;
+  }
+  return family;
+}
+const loadPageFonts = words => Promise.all([...new Set(words.map(w => w.v2_page))].map(p => pageFonts.get(pageFont(p))));
+
+// One verse as Arabic: plain text, or for tajweed its words in their page's font
+// (a verse can run across two pages).
+function arabicHTML(source) {
+  if (!SCRIPTS[script].words) return escapeHTML(source || '');
+  return (source || []).map(w => `<span style="font-family:'${pageFont(w.v2_page)}'">${escapeHTML(w.code_v2 || '')}</span>`).join(' ');
+}
+const arabicOf = v => (SCRIPTS[script].words ? v.words : v[SCRIPTS[script].field]);
+
 async function fetchChapterVerses(id) {
-  const url = p => `${API}/verses/by_chapter/${id}?per_page=50&page=${p}&fields=text_uthmani&translations=${TRANSLATION}`;
+  const text = SCRIPTS[script].words ? 'words=true&word_fields=code_v2,v2_page' : `fields=${SCRIPTS[script].field}`;
+  const url = p => `${API}/verses/by_chapter/${id}?per_page=50&page=${p}&${text}&translations=${TRANSLATION}`;
   const first = await getJSON(url(1));
   const rest = await Promise.all(
     Array.from({ length: first.pagination.total_pages - 1 }, (_, i) => getJSON(url(i + 2)))
   );
-  return [first, ...rest].flatMap(r => r.verses);
+  const verses = [first, ...rest].flatMap(r => r.verses);
+  if (SCRIPTS[script].words) await loadPageFonts(verses.flatMap(v => v.words));
+  return verses;
 }
 
 function escapeHTML(s) {
@@ -508,10 +596,11 @@ async function openChapter(id, verse, moved = false) {
   const next = id < 114
     ? `<div class="next"><button class="btn" data-next="${id + 1}">Next: ${escapeHTML(chapters[id]?.name_simple || 'Surah ' + (id + 1))} →</button></div>` : '';
 
+  $main.classList.toggle('indopak', script === 'indopak');
   $main.innerHTML = bismillah + verses.map(v => `
     <article class="verse" id="v${v.verse_number}" data-verse="${v.verse_number}">
       <span class="key">${v.verse_key}</span>
-      <p class="ar">${v.text_uthmani}</p>
+      <p class="ar${SCRIPTS[script].words ? ' qpc' : ''}">${arabicHTML(arabicOf(v))}</p>
       <p class="en">${escapeHTML(plainTranslation(v.translations?.[0]?.text || ''))}</p>
     </article>`).join('') + next + CREDIT;
 
@@ -519,7 +608,7 @@ async function openChapter(id, verse, moved = false) {
   const target = Math.min(Math.max(verse, 1), verses.length);
   // Load the Arabic font before jumping: fonts.ready alone can resolve before
   // the font has even started loading, and the later swap changes line heights.
-  await document.fonts.load('30px "Amiri Quran"', 'بِسْمِ').catch(() => {});
+  await document.fonts.load(`30px ${SCRIPTS[script].font}`, 'بِسْمِ').catch(() => {});
   anchorTo(target);
   setCurrent(id, target, moved);
   holdAnchor(target);
@@ -821,11 +910,55 @@ function setSettingsOpen(open) {
   $settings.hidden = !open;
   document.body.style.overflow = open ? 'hidden' : '';
   if (open) {
+    renderReading();
     refreshReminders();
     renderLink();
     $linkMsg.textContent = '';
   }
 }
+function renderReading() {
+  document.querySelector(`input[name="script"][value="${script}"]`).checked = true;
+  document.querySelector(`input[name="theme"][value="${pref('quran-theme', 'system', ['light', 'dark'])}"]`).checked = true;
+  const $preview = document.getElementById('script-preview');
+  $preview.classList.toggle('indopak', script === 'indopak');
+  $preview.classList.toggle('qpc', !!SCRIPTS[script].words);
+  $preview.innerHTML = arabicHTML(SCRIPTS[script].sample);
+}
+
+// A new script reloads the surah at the same verse; it isn't a move.
+document.querySelectorAll('input[name="script"]').forEach(input => input.addEventListener('change', () => {
+  script = input.value;
+  try { localStorage.setItem('quran-script', script); } catch {}
+  renderReading();
+  if (current.chapter) openChapter(current.chapter, current.verse);
+}));
+
+const THEME_COLORS = { light: '#f7f4ec', dark: '#14171a' };
+function applyTheme(theme) {
+  if (theme === 'system') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  // The browser bar follows: one colour for a fixed theme, or the system's pair.
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
+    if (!m.dataset.media) m.dataset.media = m.media;
+    m.media = theme === 'system' ? m.dataset.media : '';
+    if (theme !== 'system') m.content = THEME_COLORS[theme];
+    else m.content = m.dataset.media.includes('dark') ? THEME_COLORS.dark : THEME_COLORS.light;
+  });
+}
+applyTheme(pref('quran-theme', 'system', ['light', 'dark']));
+document.querySelectorAll('input[name="theme"]').forEach(input => input.addEventListener('change', () => {
+  try {
+    if (input.value === 'system') localStorage.removeItem('quran-theme');
+    else localStorage.setItem('quran-theme', input.value);
+  } catch {}
+  applyTheme(input.value);
+  if (isSafari && SCRIPTS[script].words) { renderReading(); if (current.chapter) openChapter(current.chapter, current.verse); }
+}));
+
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (isSafari && SCRIPTS[script].words && !document.documentElement.dataset.theme && current.chapter) openChapter(current.chapter, current.verse);
+});
+
 // Settings gets its own history entry, so the phone's back button closes it
 // instead of leaving the app.
 function closeSettings() {
