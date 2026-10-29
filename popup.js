@@ -102,7 +102,7 @@ async function renderPhone() {
   $("phone-code").hidden = !showingCode;
   $("phone-on-text").textContent = status && status.offline
     ? "Offline right now."
-    : "Your place stays in sync.";
+    : "To use another phone, unlink first.";
   return status;
 }
 
