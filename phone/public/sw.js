@@ -2,7 +2,7 @@
 // (stale-while-revalidate), so surahs you've opened work offline.
 // The Quran Foundation Developer Terms cap cached Quran content at 1 week
 // (font files are exempt), so API responses are timestamped and expire.
-const SHELL = 'shell-v7';
+const SHELL = 'shell-v8';
 const QURAN = 'quran-v1';
 const FONTS = 'fonts-v1';
 const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -31,7 +31,21 @@ self.addEventListener('fetch', e => {
   // Navigations (including ?chapter=…&verse=…) are served by the cached shell.
   if (req.mode === 'navigate') {
     e.waitUntil(purgeExpired()); // each app launch drops anything past 7 days
-    e.respondWith(fetch(req).catch(() => caches.match('index.html')));
+    // The network gets 2 seconds; after that (or offline) the saved copy opens
+    // instead, so a slow connection never leaves a blank screen. A newer page
+    // that arrives later is saved for next time.
+    e.respondWith((async () => {
+      const net = fetch(req).then(res => {
+        if (res.ok) { const copy = res.clone(); caches.open(SHELL).then(c => c.put('index.html', copy)); }
+        return res;
+      });
+      const slow = new Promise(r => setTimeout(r, 2000)).then(async () => (await caches.match('index.html')) || net);
+      try {
+        return await Promise.race([net, slow]);
+      } catch {
+        return (await caches.match('index.html')) || Response.error();
+      }
+    })());
     return;
   }
 

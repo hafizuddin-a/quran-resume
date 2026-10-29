@@ -34,7 +34,8 @@
   <meta name="apple-mobile-web-app-title" content="Quran">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Loaded without blocking the first paint; the system font shows until Inter arrives. -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <style>
     /* The fonts quran.com uses, served from this app so they work offline. */
     @font-face { font-family: UthmanicHafs; src: url(fonts/UthmanicHafs1Ver18.woff2) format("woff2"); font-display: swap; }
@@ -129,6 +130,7 @@
     }
     .indopak .ar, .indopak .bismillah, .ar.indopak { font-family: IndoPak, serif; line-height: 2.4; }
     .ar.qpc { line-height: 2; word-spacing: 0; }
+    .qpc [data-p] { visibility: hidden; } /* until its page's font is in */
     :root[data-theme="dark"] .qpc { font-palette: --qpc-dark; }
     @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .qpc { font-palette: --qpc-dark; } }
     /* Segmented choice, like the platform's own. */
@@ -534,27 +536,65 @@ const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|Chromium|A
 const darkNow = () => document.documentElement.dataset.theme === 'dark'
   || (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
 const qpcVariant = () => (isSafari ? `ot-svg/${darkNow() ? 'dark' : 'light'}` : 'colrv1');
-const pageFonts = new Map();
-function pageFont(page) {
-  const family = `qpc-${qpcVariant().replace('/', '-')}-p${page}`;
+// A surah's page fonts are fetched on demand: those for the verses on screen
+// first, then the rest, nearest pages first, a few at a time. (Al-Baqarah alone
+// is 48 pages: about 4 MB of colour fonts, or 16 MB of Safari's SVG ones.) A word
+// stays hidden until its page's font is in, since its glyph codes mean nothing in
+// any other font; each font is shown by one style rule.
+const pageFonts = new Map(); // font family -> promise of whether it loaded
+const loadedFamilies = new Set();
+const pageFamily = page => `qpc-${qpcVariant().replace('/', '-')}-p${page}`;
+function loadPage(page) {
+  const family = pageFamily(page);
   if (!pageFonts.has(family)) {
     const face = new FontFace(family, `url(qpc/${qpcVariant()}/p${page}.woff2)`, { display: 'block' });
     document.fonts.add(face);
-    pageFonts.set(family, face.load().catch(() => {}));
-    // The colour fonts carry a dark palette too (palette 1); name it for every page font.
-    let style = document.getElementById('qpc-palette');
-    if (!style) document.head.append(style = Object.assign(document.createElement('style'), { id: 'qpc-palette' }));
-    style.textContent = `@font-palette-values --qpc-dark { font-family: ${[...pageFonts.keys()].map(f => `'${f}'`).join(', ')}; base-palette: 1; }`;
+    pageFonts.set(family, face.load().then(() => { loadedFamilies.add(family); showLoadedPages(); return true; }, () => false));
   }
-  return family;
+  return pageFonts.get(family);
 }
-const loadPageFonts = words => Promise.all([...new Set(words.map(w => w.v2_page))].map(p => pageFonts.get(pageFont(p))));
 
-// One verse as Arabic: plain text, or for tajweed its words in their page's font
-// (a verse can run across two pages).
+// Applies the loaded fonts. Words appearing above the verse you're reading can
+// change its position, so the page is moved back by the same amount.
+function showLoadedPages() {
+  let style = document.getElementById('qpc-fonts');
+  if (!style) document.head.append(style = Object.assign(document.createElement('style'), { id: 'qpc-fonts' }));
+  const el = !restoring && current.chapter && document.getElementById(`v${current.verse}`);
+  const before = el ? el.getBoundingClientRect().top : 0;
+  const prefix = pageFamily('');
+  const families = [...loadedFamilies];
+  style.textContent = families.filter(f => f.startsWith(prefix))
+    .map(f => `.qpc [data-p="${f.slice(prefix.length)}"] { font-family: '${f}'; visibility: visible; }`).join('\n')
+    // The colour fonts carry a dark palette too (palette 1).
+    + (families.length ? `\n@font-palette-values --qpc-dark { font-family: ${families.map(f => `'${f}'`).join(', ')}; base-palette: 1; }` : '');
+  if (el) {
+    const shift = el.getBoundingClientRect().top - before;
+    if (Math.abs(shift) > 0.5) scrollBy(0, shift);
+  }
+}
+
+// Fonts for the verses around `target` (index), returning whether they loaded;
+// the rest of the surah's pages follow in the background.
+let fontRun = 0;
+async function loadTajweedFonts(verses, target) {
+  const run = ++fontRun;
+  const pagesOf = list => [...new Set(list.flatMap(v => v.words.map(w => w.v2_page)))];
+  const near = pagesOf(verses.slice(Math.max(0, target - 2), target + 8));
+  const ok = (await Promise.all(near.map(loadPage))).every(Boolean);
+  (async () => {
+    const first = Math.min(...near);
+    const rest = pagesOf(verses).filter(p => !near.includes(p));
+    const order = [...rest.filter(p => p > first), ...rest.filter(p => p < first).reverse()];
+    for (let i = 0; i < order.length && run === fontRun; i += 3) await Promise.all(order.slice(i, i + 3).map(loadPage));
+  })();
+  return ok;
+}
+
+// One verse as Arabic: plain text, or for tajweed its words tagged with their
+// page (a verse can run across two).
 function arabicHTML(source) {
   if (!SCRIPTS[script].words) return escapeHTML(source || '');
-  return (source || []).map(w => `<span style="font-family:'${pageFont(w.v2_page)}'">${escapeHTML(w.code_v2 || '')}</span>`).join(' ');
+  return (source || []).map(w => `<span data-p="${w.v2_page}">${escapeHTML(w.code_v2 || '')}</span>`).join(' ');
 }
 const arabicOf = v => (SCRIPTS[script].words ? v.words : v[SCRIPTS[script].field]);
 
@@ -565,9 +605,7 @@ async function fetchChapterVerses(id) {
   const rest = await Promise.all(
     Array.from({ length: first.pagination.total_pages - 1 }, (_, i) => getJSON(url(i + 2)))
   );
-  const verses = [first, ...rest].flatMap(r => r.verses);
-  if (SCRIPTS[script].words) await loadPageFonts(verses.flatMap(v => v.words));
-  return verses;
+  return [first, ...rest].flatMap(r => r.verses);
 }
 
 function escapeHTML(s) {
@@ -611,6 +649,15 @@ async function openChapter(id, verse, moved = false) {
   // Load the Arabic font before jumping: fonts.ready alone can resolve before
   // the font has even started loading, and the later swap changes line heights.
   await document.fonts.load(`30px ${SCRIPTS[script].font}`, 'بِسْمِ').catch(() => {});
+  if (SCRIPTS[script].words) {
+    showLoadedPages(); // a theme change on Safari switches font sets
+    if (!(await loadTajweedFonts(verses, target - 1))) {
+      $main.innerHTML = `<div class="status">Couldn’t load this surah. Check your connection.
+        <div class="next"><button class="btn" data-retry="${id},${verse},${moved ? 1 : 0}">Try again</button></div></div>`;
+      restoring = false;
+      return;
+    }
+  }
   anchorTo(target);
   setCurrent(id, target, moved);
   holdAnchor(target);
@@ -925,6 +972,7 @@ function renderReading() {
   $preview.classList.toggle('indopak', script === 'indopak');
   $preview.classList.toggle('qpc', !!SCRIPTS[script].words);
   $preview.innerHTML = arabicHTML(SCRIPTS[script].sample);
+  if (SCRIPTS[script].words) { loadPage(1); showLoadedPages(); }
 }
 
 // A new script reloads the surah at the same verse; it isn't a move.
@@ -940,12 +988,16 @@ function applyTheme(theme) {
   if (theme === 'system') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
   // The browser bar follows: one colour for a fixed theme, or the system's pair.
-  document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
-    if (!m.dataset.media) m.dataset.media = m.media;
-    m.media = theme === 'system' ? m.dataset.media : '';
-    if (theme !== 'system') m.content = THEME_COLORS[theme];
-    else m.content = m.dataset.media.includes('dark') ? THEME_COLORS.dark : THEME_COLORS.light;
-  });
+  // The tags are replaced, not edited: iPhone's status bar only notices new ones.
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove());
+  const pairs = theme === 'system'
+    ? [['light', '(prefers-color-scheme: light)'], ['dark', '(prefers-color-scheme: dark)']]
+    : [[theme, '']];
+  for (const [name, media] of pairs) {
+    const m = Object.assign(document.createElement('meta'), { name: 'theme-color', content: THEME_COLORS[name] });
+    if (media) m.media = media;
+    document.head.append(m);
+  }
 }
 applyTheme(pref('quran-theme', 'system', ['light', 'dark']));
 document.querySelectorAll('input[name="theme"]').forEach(input => input.addEventListener('change', () => {
