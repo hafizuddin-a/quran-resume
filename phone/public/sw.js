@@ -2,7 +2,7 @@
 // (stale-while-revalidate), so surahs you've opened work offline.
 // The Quran Foundation Developer Terms cap cached Quran content at 1 week
 // (font files are exempt), so API responses are timestamped and expire.
-const SHELL = 'shell-v10';
+const SHELL = 'shell-v11';
 const QURAN = 'quran-v1';
 const FONTS = 'fonts-v1';
 const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -118,8 +118,10 @@ self.addEventListener('push', e => {
     : data.body;
   // Close the previous reminder and post a brand-new one rather than updating it
   // in place: Android only pops a banner on screen for new notifications.
+  // A test only replaces an earlier test, so it never takes away a real
+  // reminder that is waiting to be acknowledged.
   e.waitUntil(self.registration.getNotifications().then(old => {
-    old.forEach(n => n.close());
+    old.filter(n => data.kind === 'reminder' || n.data?.kind !== 'reminder').forEach(n => n.close());
     return self.registration.showNotification(data.title || 'Time to read the Quran', {
       body,
       icon: 'icon-192.png',

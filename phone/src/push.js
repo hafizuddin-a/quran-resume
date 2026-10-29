@@ -65,11 +65,14 @@ async function vapidToken(endpoint, vapid) {
 }
 
 // Returns the push service's HTTP status (201 = accepted; 404/410 = subscription gone).
-export async function sendPush(subscription, payload, vapid, ttl = 3600) {
+// Urgency "high" asks the push service to deliver at once, even while the phone
+// is idle (Android Doze, iPhone power saving); a reminder late by an hour is no use.
+export async function sendPush(subscription, payload, vapid, ttl = 3600, urgency = 'high') {
   const res = await fetch(subscription.endpoint, {
     method: 'POST',
     headers: {
       TTL: String(ttl),
+      Urgency: urgency,
       'Content-Encoding': 'aes128gcm',
       'Content-Type': 'application/octet-stream',
       Authorization: `vapid t=${await vapidToken(subscription.endpoint, vapid)}, k=${vapid.publicKey}`,

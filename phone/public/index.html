@@ -167,7 +167,9 @@
       background: var(--bg);
       padding-top: env(safe-area-inset-top);
     }
-    #settings .bar { justify-content: space-between; border-bottom: 1px solid var(--line); max-width: none; }
+    /* Stays at the top: an iPhone Home Screen app has no back gesture to leave Settings. */
+    #settings .bar { justify-content: space-between; border-bottom: 1px solid var(--line); max-width: none;
+      position: sticky; top: 0; z-index: 1; background: var(--bg); }
     #settings .bar h1 { margin: 0; font-size: 17px; font-weight: 600; }
     .settings-body { max-width: 560px; margin: 0 auto; padding: 24px 16px 48px; }
     .card {
@@ -833,10 +835,9 @@ function renderReminders(s) {
   else if (acked) $remToday.textContent = 'Done for today';
   else if (sent.length >= 3) $remToday.textContent = 'All 3 sent today';
   else {
-    // A time that passed over an hour ago is skipped by the server, so it isn't next.
-    const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
-    const toMin = t => +t.slice(0, 2) * 60 + +t.slice(3);
-    const next = s.settings.times.find((t, i) => i > Math.max(-1, ...sent) && toMin(t) >= nowMin - 60);
+    // The server works out what's next, in the phone's time zone and by its own
+    // clock, so a phone with a wrong clock still shows the right time.
+    const next = s.today.next;
     $remToday.textContent = next ? `Next at ${fmtTime(next)}` : 'No more today';
   }
 }
@@ -910,7 +911,7 @@ async function sendTest($msg) {
     await api('test', { phone: phoneId() });
     clearTimeout(testTimer);
     testTimer = setTimeout(() => {
-      $msg.textContent = 'The test didn’t arrive. This browser may not deliver reminders: open the app in Chrome instead.';
+      $msg.textContent = 'The test didn’t arrive. Check notifications are on for this app in your phone’s settings. Some browsers, like Ecosia, can’t show reminders: use Chrome.';
     }, 20000);
     return true;
   } catch (err) {

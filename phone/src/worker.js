@@ -101,7 +101,7 @@ const phoneStatus = (env, row) => ({
   publicKey: env.VAPID_PUBLIC_KEY,
   subscribed: !!row.subscription,
   settings: { enabled: !!row.enabled, times: JSON.parse(row.times), timeZone: row.time_zone },
-  today: { date: row.day, sent: JSON.parse(row.sent), acked: !!row.acked },
+  today: { date: row.day, sent: sentTimes(row), acked: !!row.acked, next: row.enabled ? nextToday(row) : null },
 });
 
 const vapid = env => ({ publicKey: env.VAPID_PUBLIC_KEY, privateJwk: JSON.parse(env.VAPID_PRIVATE_JWK), subject: env.VAPID_SUBJECT });
@@ -119,50 +119,63 @@ async function push(env, row, payload) {
   return status >= 200 && status < 300;
 }
 
-// The latest slot whose time has passed, comes after the last one sent, and isn't stale.
-function dueSlot(row) {
+// Today's sent reminders are kept as the times they were sent for ("HH:MM"), so
+// changing a reminder's time makes it a new one: moving reminder 2 to later
+// today still fires. Older rows hold slot numbers; those are read as times.
+function sentTimes(row) {
+  const times = JSON.parse(row.times);
+  return JSON.parse(row.sent).map(x => (typeof x === 'number' ? times[x] : x)).filter(Boolean);
+}
+
+// Times still to come today: not sent, later than the last one sent (an earlier
+// one that was skipped stays skipped), and not over an hour late.
+function pendingTimes(row, minutes) {
+  const sent = sentTimes(row);
+  const last = sent.reduce((a, t) => (t > a ? t : a), '');
+  return JSON.parse(row.times).filter(t => !sent.includes(t) && t > last && toMinutes(t) >= minutes - LATE_LIMIT_MIN);
+}
+
+// The latest pending time that has arrived.
+function dueTime(row) {
   const { minutes } = localNow(row.time_zone);
-  const times = JSON.parse(row.times).map(toMinutes);
-  const sent = JSON.parse(row.sent);
-  const last = sent.length ? Math.max(...sent) : -1;
-  for (let i = times.length - 1; i > last; i--) {
-    if (times[i] <= minutes) return minutes - times[i] <= LATE_LIMIT_MIN ? i : null;
-  }
-  return null;
+  return pendingTimes(row, minutes).filter(t => toMinutes(t) <= minutes).pop() || null;
 }
 
 async function remind(env, row) {
   row = await rollDay(env, row);
-  const sent = JSON.parse(row.sent);
+  const sent = sentTimes(row);
   if (row.acked || sent.length >= 3) return;
-  const slot = dueSlot(row);
-  if (slot === null) return;
+  const time = dueTime(row);
+  if (!time) return;
   const n = sent.length + 1;
   const ok = await push(env, row, {
-    kind: 'reminder', phone: row.id, date: row.day, slot, n,
+    kind: 'reminder', phone: row.id, date: row.day, time, n,
     title: 'Time to read the Quran', body: MESSAGES[Math.min(n - 1, 2)], explain: n === 1,
   });
   if (ok) {
-    sent.push(slot);
-    row.sent = JSON.stringify(sent);
+    row.sent = JSON.stringify([...sent, time]);
     await env.DB.prepare('UPDATE phones SET sent = ? WHERE id = ?').bind(row.sent, row.id).run();
   }
 }
 
+// Today's next reminder ("HH:MM"), or null when there are no more today.
+function nextToday(row) {
+  const { date, minutes } = localNow(row.time_zone);
+  if (row.day !== date) row = { ...row, sent: '[]', acked: 0 };
+  if (row.acked || sentTimes(row).length >= 3) return null;
+  // One that has already arrived goes out at the next run (the latest, if several).
+  const pending = pendingTimes(row, minutes);
+  return pending.filter(t => toMinutes(t) <= minutes).pop() || pending[0] || null;
+}
+
 // When this phone's next reminder is due (epoch ms, to the minute).
 function nextAt(row) {
-  const { date, minutes } = localNow(row.time_zone);
+  const { minutes } = localNow(row.time_zone);
   const minuteStart = Math.floor(Date.now() / 60_000) * 60_000;
-  const times = JSON.parse(row.times).map(toMinutes);
-  const sameDay = row.day === date;
-  const sent = sameDay ? JSON.parse(row.sent) : [];
-  if (!(sameDay && row.acked) && sent.length < 3) {
-    const last = sent.length ? Math.max(...sent) : -1;
-    for (let i = last + 1; i < times.length; i++) {
-      if (times[i] >= minutes - LATE_LIMIT_MIN) return minuteStart + Math.max(0, times[i] - minutes) * 60_000;
-    }
-  }
-  return minuteStart + (1440 - minutes + times[0]) * 60_000; // tomorrow's first reminder
+  const next = nextToday(row);
+  if (next) return minuteStart + Math.max(0, toMinutes(next) - minutes) * 60_000;
+  const first = toMinutes(JSON.parse(row.times)[0]);
+  return minuteStart + (1440 - minutes + first) * 60_000; // tomorrow's first reminder
 }
 
 async function scheduleNext(env, id) {
