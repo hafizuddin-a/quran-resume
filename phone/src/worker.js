@@ -24,6 +24,7 @@ const DEFAULT_TIMES = ['08:00', '13:00', '20:00'];
 const LATE_LIMIT_MIN = 60; // a reminder more than an hour late is skipped, not sent at an odd time
 const LINK_TTL_MS = 10 * 60 * 1000;
 const LINK_FAILURES_PER_10_MIN = 20; // wrong link codes allowed per visitor: guessing 1 of 1,000,000 stays hopeless
+const ONE_PHONE = 'A phone is already linked. Unlink it in Quran Resume, then link again.';
 const REMIND_BATCH = 5;    // phones per Worker run: a few pushes and ~25 queries, inside free-plan limits
 const REMIND_BATCHES = 40; // batches per minute: 200 reminders a minute on the free plan
 const MESSAGES = [
@@ -382,8 +383,13 @@ const routes = {
     return { code, ...(await newLinkCode(env, code)) };
   },
 
-  // Extension: a fresh link code for an existing pairing (to add a phone).
-  'POST /api/pair/link-code': async (env, { code }) => newLinkCode(env, (await getPair(env, code)).code),
+  // Extension: a fresh link code for a pairing still waiting for its phone.
+  // One phone per computer: a new phone means Unlink, then link again.
+  'POST /api/pair/link-code': async (env, { code }) => {
+    const pair = await getPair(env, code);
+    if (pair.phones > 0) throw httpError(409, ONE_PHONE);
+    return newLinkCode(env, pair.code);
+  },
 
   // Phone: swap a 6-digit link code for the pairing code.
   'POST /api/link': async (env, { linkCode }, request) => {
@@ -399,7 +405,10 @@ const routes = {
         .bind(ip, minute).run();
       throw httpError(404, 'That code is wrong or has expired. Show a new one in Quran Resume.');
     }
-    await env.DB.prepare('UPDATE pairs SET link_code = NULL, link_expires = NULL, phones = phones + 1 WHERE code = ?').bind(pair.code).run();
+    // phones = 0 in the update, so two phones using one code can't both get in.
+    const { meta } = await env.DB.prepare('UPDATE pairs SET link_code = NULL, link_expires = NULL, phones = 1 WHERE code = ? AND phones = 0')
+      .bind(pair.code).run();
+    if (!meta.changes) throw httpError(409, ONE_PHONE);
     return { code: pair.code, place: placeOf(pair) };
   },
 

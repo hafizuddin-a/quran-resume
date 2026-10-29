@@ -108,11 +108,11 @@ async function renderPhone() {
 
 async function showCode() {
   phoneMessage("");
-  $("phone-link").disabled = $("phone-show").disabled = true;
+  $("phone-link").disabled = true;
   const result = await chrome.runtime.sendMessage({ type: "qr-phone-code" });
-  $("phone-link").disabled = $("phone-show").disabled = false;
+  $("phone-link").disabled = false;
   if (!result || !result.ok) {
-    phoneMessage(result && result.offline ? offlineText : "Something went wrong. Please try again.");
+    phoneMessage(result && result.offline ? offlineText : (result && result.error) || "Something went wrong. Please try again.");
     return;
   }
   const before = phones;
@@ -142,7 +142,6 @@ function watchForPhone(before) {
 
 $("phone-link").addEventListener("click", showCode);
 
-$("phone-show").addEventListener("click", showCode);
 
 $("phone-stop").addEventListener("click", async () => {
   phoneMessage("");
