@@ -97,7 +97,7 @@ Before anything has been saved it opens Al-Fatihah, or the place you picked on t
 - Phone link. **Link your phone** in the toolbar menu shows a QR code and a 6-digit code that work once, for 10
   minutes. It needs no extra permission: the server, a Cloudflare Worker, accepts the extension's calls itself. The phone app (in [phone](phone)) is a Quran reader of
   its own, so it saves your place as you scroll, the same as the extension does on quran.com. Both send their place
-  with the time it was saved, and the newest wins. **Turn off** deletes the place from the server.
+  with the time it was saved, and the newest wins. **Unlink** deletes the place from the server.
 
 ## Privacy
 

@@ -24,8 +24,20 @@ for this. While the link is on:
 - The pairing code is created by the server and kept in the extension's local storage. It is not
   tied to your identity. A 6-digit code shown in the menu lets a phone join; it works once, for 10
   minutes.
-- **Turn off** in the toolbar menu deletes your place and pairing from the server. Removing the extension stops all sync but does not delete the server copy, so turn
-  the link off first if you want it gone.
+- **Unlink** in the toolbar menu deletes your place and pairing from the server. A pairing that no
+  phone joins is deleted automatically after a day. Removing the extension stops all sync but does
+  not delete the server copy, so unlink first if you want it gone.
+- To stop abuse (such as guessing link codes), the server counts wrong link codes per internet (IP)
+  address. Those counts are kept for at most an hour and are not linked to your place.
+
+## The Quran Resume phone app
+
+The phone app (quran-resume.hello-hafiz.workers.dev) keeps your place and reading settings on the
+phone itself. It loads Quran text from the Quran Foundation (api.quran.com) and fonts from Google
+Fonts and the same server. If you turn on daily reminders, the server stores a random id for the
+phone, its push address (from the browser's push service), your three reminder times, your time zone
+and which reminders were sent or acknowledged today. Turning reminders off stops them; the phone
+link works as described above.
 
 ## What the extension accesses
 
@@ -56,4 +68,4 @@ The settings (the on/off switch for the once-a-day return, and whether to show i
 
 The toolbar menu has a "Talk to the developer" link that opens the developer's Instagram page in a new tab. It is a plain link; the extension sends nothing.
 
-_Last updated: 29 October 2026_
+_Last updated: 29 October 2026 (version 1.5.0)_

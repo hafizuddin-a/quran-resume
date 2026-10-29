@@ -23,6 +23,7 @@ import { sendPush } from './push.js';
 const DEFAULT_TIMES = ['08:00', '13:00', '20:00'];
 const LATE_LIMIT_MIN = 60; // a reminder more than an hour late is skipped, not sent at an odd time
 const LINK_TTL_MS = 10 * 60 * 1000;
+const LINK_FAILURES_PER_10_MIN = 20; // wrong link codes allowed per visitor: guessing 1 of 1,000,000 stays hopeless
 const REMIND_BATCH = 5;    // phones per Worker run: a few pushes and ~25 queries, inside free-plan limits
 const REMIND_BATCHES = 40; // batches per minute: 200 reminders a minute on the free plan
 const MESSAGES = [
@@ -42,7 +43,7 @@ const CORS = {
 };
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
-  status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...CORS },
+  status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...CORS },
 });
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
@@ -50,6 +51,23 @@ const httpError = (status, message) => Object.assign(new Error(message), { statu
 const randomCode = () => {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+
+// The browsers' push services. The server only ever sends to these, so a made-up
+// subscription can't turn it into a way to send requests to other sites.
+const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /^([a-z0-9-]+\.)*push\.apple\.com$/, /^([a-z0-9-]+\.)*push\.services\.mozilla\.com$/, /^([a-z0-9-]+\.)*notify\.windows\.com$/];
+function isPushEndpoint(endpoint) {
+  try {
+    const u = new URL(endpoint);
+    return u.protocol === 'https:' && !u.port && PUSH_HOSTS.some(re => re.test(u.hostname));
+  } catch {
+    return false;
+  }
+}
+
+const validZone = z => {
+  if (typeof z !== 'string' || z.length > 64) return false;
+  try { new Intl.DateTimeFormat('en', { timeZone: z }); return true; } catch { return false; }
 };
 
 // ---- time ----
@@ -75,7 +93,7 @@ const validTimes = t => Array.isArray(t) && t.length === 3 && t.every(x => /^([0
 // Reading a phone that was never saved returns the defaults without storing a
 // row, so visitors who only look at Settings leave nothing behind.
 async function getPhone(env, id, create = true) {
-  if (typeof id !== 'string' || id.length < 16 || id.length > 64) throw httpError(400, 'Missing phone id.');
+  if (typeof id !== 'string' || !/^[\w-]{16,64}$/.test(id)) throw httpError(400, 'Missing phone id.');
   let row = await env.DB.prepare('SELECT * FROM phones WHERE id = ?').bind(id).first();
   if (!row && !create) {
     return { id, subscription: null, enabled: 0, times: JSON.stringify(DEFAULT_TIMES), time_zone: 'UTC', day: localNow('UTC').date, sent: '[]', acked: 0 };
@@ -108,6 +126,7 @@ const vapid = env => ({ publicKey: env.VAPID_PUBLIC_KEY, privateJwk: JSON.parse(
 
 async function push(env, row, payload) {
   let status;
+  if (!isPushEndpoint(JSON.parse(row.subscription).endpoint)) return false;
   try {
     status = await sendPush(JSON.parse(row.subscription), payload, vapid(env));
   } catch {
@@ -201,11 +220,9 @@ async function remindBatch(env, ids) {
 
 // ---- pairs (place sync) ----
 
-let failedLinks = 0; // per Worker instance; a light brake on guessing 6-digit codes
-let failedSince = Date.now();
 
 async function getPair(env, code) {
-  const pair = typeof code === 'string' && code.length >= 16
+  const pair = typeof code === 'string' && /^[\w-]{16,64}$/.test(code)
     && await env.DB.prepare('SELECT * FROM pairs WHERE code = ?').bind(code).first();
   if (!pair) throw httpError(404, 'This link was turned off. Link again from Quran Resume.');
   return pair;
@@ -278,6 +295,32 @@ async function pageFont(request, url, ctx) {
   return out;
 }
 
+// Rate limits, per visitor (IP), shared across all of Cloudflare's servers:
+// - linking: a 6-digit code can't be guessed (10 tries a minute against
+//   1,000,000 codes that expire in 10 minutes);
+// - creating things (pairings, push subscriptions, tests): no flooding the
+//   database or someone's phone;
+// - everything else: generous, well above any real use.
+// If the limiter itself fails, requests go through rather than breaking the app.
+// Cloudflare's limiter is approximate, so guessing link codes also has a strict
+// limit of its own (below, in the database).
+const LIMITS = {
+  'POST /api/link': 'LINK_LIMIT',
+  'POST /api/pair': 'CREATE_LIMIT',
+  'POST /api/pair/link-code': 'CREATE_LIMIT',
+  'POST /api/subscribe': 'CREATE_LIMIT',
+  'POST /api/test': 'CREATE_LIMIT',
+};
+async function checkLimits(env, request, key) {
+  const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+  for (const name of [LIMITS[key], 'API_LIMIT']) {
+    if (!name || !env[name]) continue;
+    let ok = true;
+    try { ({ success: ok } = await env[name].limit({ key: `${name}:${ip}` })); } catch {}
+    if (!ok) throw httpError(429, 'Too many tries. Wait a minute and try again.');
+  }
+}
+
 const routes = {
   'GET /api/config': env => ({ publicKey: env.VAPID_PUBLIC_KEY }),
 
@@ -286,9 +329,12 @@ const routes = {
 
   'POST /api/subscribe': async (env, { phone, subscription, settings = {} }) => {
     if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) throw httpError(400, 'Missing subscription.');
+    if (!isPushEndpoint(subscription.endpoint)) throw httpError(400, 'Unsupported push service.');
+    if (JSON.stringify(subscription).length > 2000) throw httpError(400, 'Subscription too large.');
+    subscription = { endpoint: subscription.endpoint, keys: { p256dh: String(subscription.keys.p256dh), auth: String(subscription.keys.auth) } };
     await getPhone(env, phone);
     await env.DB.prepare('UPDATE phones SET subscription = ?, enabled = 1, time_zone = COALESCE(?, time_zone) WHERE id = ?')
-      .bind(JSON.stringify(subscription), settings.timeZone || null, phone).run();
+      .bind(JSON.stringify(subscription), validZone(settings.timeZone) ? settings.timeZone : null, phone).run();
     await scheduleNext(env, phone);
     return phoneStatus(env, await getPhone(env, phone));
   },
@@ -299,7 +345,10 @@ const routes = {
       if (!validTimes(times)) throw httpError(400, 'Times must be three HH:MM values.');
       await env.DB.prepare('UPDATE phones SET times = ? WHERE id = ?').bind(JSON.stringify([...times].sort()), phone).run();
     }
-    if (timeZone) await env.DB.prepare('UPDATE phones SET time_zone = ? WHERE id = ?').bind(timeZone, phone).run();
+    if (timeZone !== undefined) {
+      if (!validZone(timeZone)) throw httpError(400, 'Unknown time zone.');
+      await env.DB.prepare('UPDATE phones SET time_zone = ? WHERE id = ?').bind(timeZone, phone).run();
+    }
     if (enabled !== undefined) await env.DB.prepare('UPDATE phones SET enabled = ? WHERE id = ?').bind(enabled ? 1 : 0, phone).run();
     await scheduleNext(env, phone);
     return phoneStatus(env, await getPhone(env, phone));
@@ -337,13 +386,17 @@ const routes = {
   'POST /api/pair/link-code': async (env, { code }) => newLinkCode(env, (await getPair(env, code)).code),
 
   // Phone: swap a 6-digit link code for the pairing code.
-  'POST /api/link': async (env, { linkCode }) => {
-    if (Date.now() - failedSince > 60_000) { failedLinks = 0; failedSince = Date.now(); }
-    if (failedLinks >= 20) throw httpError(429, 'Too many tries. Wait a minute and try again.');
+  'POST /api/link': async (env, { linkCode }, request) => {
+    const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+    const minute = Math.floor(Date.now() / 60_000);
+    const { tries } = await env.DB.prepare('SELECT COALESCE(SUM(count), 0) AS tries FROM link_failures WHERE ip = ? AND minute > ?')
+      .bind(ip, minute - 10).first();
+    if (tries >= LINK_FAILURES_PER_10_MIN) throw httpError(429, 'Too many tries. Wait a few minutes and try again.');
     const pair = /^\d{6}$/.test(String(linkCode))
       && await env.DB.prepare('SELECT * FROM pairs WHERE link_code = ? AND link_expires > ?').bind(String(linkCode), Date.now()).first();
     if (!pair) {
-      failedLinks++;
+      await env.DB.prepare('INSERT INTO link_failures (ip, minute, count) VALUES (?, ?, 1) ON CONFLICT (ip, minute) DO UPDATE SET count = count + 1')
+        .bind(ip, minute).run();
       throw httpError(404, 'That code is wrong or has expired. Show a new one in Quran Resume.');
     }
     await env.DB.prepare('UPDATE pairs SET link_code = NULL, link_expires = NULL, phones = phones + 1 WHERE code = ?').bind(pair.code).run();
@@ -378,25 +431,29 @@ export default {
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/api/manifest') return manifestFor(url.searchParams.get('pair'));
     if (request.method === 'GET' && url.pathname.startsWith('/qpc/')) return pageFont(request, url, ctx);
-    // Called by the cron below through a service binding. Safe if called by
-    // anyone else: it only sends reminders that are already due.
+    // Called only by the cron below, through a service binding, with a secret key.
     if (request.method === 'POST' && url.pathname === '/internal/remind') {
+      if (!env.INTERNAL_KEY || request.headers.get('x-internal-key') !== env.INTERNAL_KEY) return new Response('Not found', { status: 404 });
       const ids = await request.json().catch(() => []);
       if (Array.isArray(ids)) await remindBatch(env, ids.filter(id => typeof id === 'string'));
       return new Response(null, { status: 204 });
     }
-    const route = routes[`${request.method} ${url.pathname}`];
+    const key = `${request.method} ${url.pathname}`;
+    const route = routes[key];
     if (!route) return json({ error: 'Not found' }, 404);
     try {
+      await checkLimits(env, request, key);
       let body = {};
       if (request.method === 'POST') {
         const text = await request.text();
         if (text.length > 10_000) throw httpError(413, 'Too large.');
         body = text ? JSON.parse(text) : {};
       }
-      return json(await route(env, body));
+      return json(await route(env, body, request));
     } catch (err) {
-      return json({ error: err.message }, err.status || 400);
+      if (err instanceof SyntaxError) return json({ error: 'Invalid request.' }, 400);
+      if (!err.status) console.error(key, err);
+      return json({ error: err.status ? err.message : 'Something went wrong. Please try again.' }, err.status || 500);
     }
   },
 
@@ -409,8 +466,18 @@ export default {
     const ids = results.map(r => r.id);
     const runs = [];
     for (let i = 0; i < ids.length; i += REMIND_BATCH) {
-      runs.push(env.SELF.fetch('https://internal/internal/remind', { method: 'POST', body: JSON.stringify(ids.slice(i, i + REMIND_BATCH)) }));
+      runs.push(env.SELF.fetch('https://internal/internal/remind', {
+        method: 'POST', headers: { 'x-internal-key': env.INTERNAL_KEY }, body: JSON.stringify(ids.slice(i, i + REMIND_BATCH)),
+      }));
     }
     ctx.waitUntil(Promise.allSettled(runs));
+    // Once an hour, drop pairings that no phone joined within a day, and old failed-link counts.
+    if (new Date(event.scheduledTime).getUTCMinutes() === 0) {
+      ctx.waitUntil(env.DB.batch([
+        env.DB.prepare('DELETE FROM pairs WHERE phones = 0 AND created_at < ? AND (link_expires IS NULL OR link_expires < ?)')
+          .bind(Date.now() - 86_400_000, Date.now()),
+        env.DB.prepare('DELETE FROM link_failures WHERE minute < ?').bind(Math.floor(Date.now() / 60_000) - 60),
+      ]));
+    }
   },
 };

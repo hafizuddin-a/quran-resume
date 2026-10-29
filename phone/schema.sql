@@ -22,3 +22,12 @@ CREATE TABLE IF NOT EXISTS phones (
   next_at INTEGER                   -- when the next reminder is due (epoch ms); the sender reads only due rows
 );
 CREATE INDEX IF NOT EXISTS phones_due ON phones (next_at);
+
+-- Wrong link codes per visitor and minute, so 6-digit codes can't be guessed.
+-- Rows are only written on a wrong code and cleared after an hour.
+CREATE TABLE IF NOT EXISTS link_failures (
+  ip TEXT NOT NULL,
+  minute INTEGER NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (ip, minute)
+);

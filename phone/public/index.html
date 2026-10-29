@@ -355,7 +355,7 @@ let savedAt = 0;
 function readSaved() {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY));
-    if (saved && saved.chapter) return saved;
+    if (saved && saved.chapter >= 1 && saved.chapter <= 114 && saved.verse >= 1) return saved;
   } catch {}
   return null;
 }
@@ -364,7 +364,8 @@ function loadBookmark() {
   const saved = readSaved();
   const q = new URLSearchParams(location.search);
   if (q.has('chapter') && !q.has('pair')) {
-    const linked = { chapter: +q.get('chapter') || DEFAULT.chapter, verse: +q.get('verse') || 1 };
+    const chapter = Math.floor(+q.get('chapter'));
+    const linked = { chapter: chapter >= 1 && chapter <= 114 ? chapter : DEFAULT.chapter, verse: Math.max(1, Math.floor(+q.get('verse')) || 1) };
     // The address is kept current as you read, so one matching the saved place is
     // just a reload; a different one is a link to a verse, which counts as a move.
     if (!saved || saved.chapter !== linked.chapter || saved.verse !== linked.verse) {
@@ -652,7 +653,7 @@ async function openChapter(id, verse, moved = false) {
   $main.classList.toggle('indopak', script === 'indopak');
   $main.innerHTML = bismillah + verses.map(v => `
     <article class="verse" id="v${v.verse_number}" data-verse="${v.verse_number}">
-      <span class="key">${v.verse_key}</span>
+      <span class="key">${escapeHTML(String(v.verse_key))}</span>
       <p class="ar${SCRIPTS[script].words ? ' qpc' : ''}">${arabicHTML(arabicOf(v))}</p>
       <p class="en">${escapeHTML(plainTranslation(v.translations?.[0]?.text || ''))}</p>
     </article>`).join('') + next + CREDIT;
@@ -1113,7 +1114,7 @@ $main.addEventListener('click', e => {
   try {
     chapters = (await getJSON(`${API}/chapters?language=en`)).chapters;
     $surah.innerHTML = chapters.map(c =>
-      `<option value="${c.id}">${c.id}. ${escapeHTML(c.name_simple)} · ${c.name_arabic}</option>`).join('');
+      `<option value="${+c.id}">${+c.id}. ${escapeHTML(c.name_simple)} · ${escapeHTML(c.name_arabic)}</option>`).join('');
   } catch {
     $surah.innerHTML = `<option value="${start.chapter}">Surah ${start.chapter}</option>`;
   }
