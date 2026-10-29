@@ -21,21 +21,15 @@
   <hr>
 
   <section>
-    <div class="label">On every Chrome start</div>
+    <div class="label">Open the Quran at your last verse</div>
     <label class="row">
-      <span>Open the Quran at your last verse</span>
+      <span>When Chrome starts</span>
       <span class="toggle"><input type="checkbox" id="startup"><span class="track"></span><span class="knob"></span></span>
     </label>
-  </section>
-
-  <hr>
-
-  <section>
-    <div class="label">When your computer wakes from sleep</div>
     <label class="row">
       <span>
-        Open the Quran on first wake
-        <small>Only the first wake each day, while Chrome is open.</small>
+        When your computer wakes
+        <small>The first wake each day, while Chrome is open.</small>
       </span>
       <span class="toggle"><input type="checkbox" id="wake"><span class="track"></span><span class="knob"></span></span>
     </label>
@@ -48,7 +42,7 @@
     <label class="row">
       <span>
         Sync my place
-        <small>Uses Chrome sync, so you can carry on where you stopped on another computer.</small>
+        <small>Uses Chrome sync.</small>
       </span>
       <span class="toggle"><input type="checkbox" id="sync"><span class="track"></span><span class="knob"></span></span>
     </label>
@@ -58,16 +52,16 @@
 
   <section id="phone">
     <div class="label">On your phone</div>
-    <div id="phone-off">
-      <p class="desc">Keep your place in sync with your phone.</p>
+    <div class="row" id="phone-off">
+      <span>Keep your place in sync</span>
       <button class="primary" id="phone-link">Link your phone</button>
     </div>
-    <div id="phone-on" hidden>
-      <p class="desc" id="phone-on-text">Linked. Your place stays in sync.</p>
-      <div class="actions"><button class="secondary" id="phone-show">Link another phone</button><button class="secondary" id="phone-stop">Unlink</button></div>
+    <div class="row" id="phone-on" hidden>
+      <span id="phone-on-text">Linked</span>
+      <div class="actions"><button class="secondary" id="phone-show">Link another</button><button class="secondary" id="phone-stop">Unlink</button></div>
     </div>
     <div class="qrrow" id="phone-code" hidden>
-      <canvas id="qr" width="120" height="120" aria-label="QR code to link your phone" role="img"></canvas>
+      <canvas id="qr" width="104" height="104" aria-label="QR code to link your phone" role="img"></canvas>
       <div>
         <p class="desc">Scan with your phone's camera, or enter this code in the app.</p>
         <div class="code" id="code"></div>

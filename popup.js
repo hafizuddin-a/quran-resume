@@ -71,7 +71,7 @@ function drawQr(canvas, text) {
   const n = qr.getModuleCount();
   const quiet = 2;
   const dpr = window.devicePixelRatio || 1;
-  const cell = Math.max(1, Math.floor((120 * dpr) / (n + quiet * 2)));
+  const cell = Math.max(1, Math.floor((104 * dpr) / (n + quiet * 2)));
   const px = cell * (n + quiet * 2);
   canvas.width = px;
   canvas.height = px;
@@ -98,12 +98,11 @@ async function renderPhone() {
   const showingCode = Date.now() < codeUntil;
   phones = (status && status.phones) || 0;
   $("phone-off").hidden = linked || showingCode;
-  $("phone-on").hidden = !linked;
-  $("phone-show").hidden = showingCode;
+  $("phone-on").hidden = !linked || showingCode;
   $("phone-code").hidden = !showingCode;
   $("phone-on-text").textContent = status && status.offline
-    ? "Linked, but offline right now."
-    : "Linked. Your place stays in sync.";
+    ? "Linked, but offline"
+    : "Linked";
   return status;
 }
 
