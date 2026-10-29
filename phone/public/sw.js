@@ -2,7 +2,7 @@
 // (stale-while-revalidate), so surahs you've opened work offline.
 // The Quran Foundation Developer Terms cap cached Quran content at 1 week
 // (font files are exempt), so API responses are timestamped and expire.
-const SHELL = 'shell-v11';
+const SHELL = 'shell-v12';
 const QURAN = 'quran-v1';
 const FONTS = 'fonts-v1';
 const MAX_AGE = 7 * 24 * 60 * 60 * 1000;

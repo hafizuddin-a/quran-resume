@@ -488,6 +488,13 @@ async function pullPlace() {
   if (!place || restoring || place.savedAt <= savedAt) return;
   const fromComputer = place === remote;
   savedAt = place.savedAt;
+  // This phone's own place coming back from the server looks a little newer
+  // than it is (the time it took to get there and back), so the same verse
+  // is never news: keep the time, but don't move or say anything.
+  if (place.chapter === current.chapter && place.verse === current.verse) {
+    saveBookmark();
+    return;
+  }
   if (place.chapter === current.chapter) {
     anchorTo(place.verse);
     setCurrent(place.chapter, place.verse);
