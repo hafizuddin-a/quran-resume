@@ -362,6 +362,15 @@ if (chrome.commands && chrome.commands.onCommand) {
   });
 }
 
+// After an install, update or reload, quran.com tabs that were already open are
+// still running the old, cut-off script, which can't save your place. Give them
+// a fresh copy so reading on in them keeps saving.
+chrome.runtime.onInstalled.addListener(async () => {
+  for (const tab of await chrome.tabs.query({ url: QURAN_MATCH })) {
+    chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] }).catch(() => {});
+  }
+});
+
 // First install: open a short welcome page (not on updates).
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });

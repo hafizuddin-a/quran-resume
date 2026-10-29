@@ -48,6 +48,9 @@ Reopen quran.com at the user's last-read verse when the browser starts.
 **storage**
 Stores the last-read verse (for example "2:9") and a few on/off settings locally, and in Chrome sync if the user leaves "Sync my place" on, so it can be restored on the next browser startup and on the user's other computers.
 
+**scripting**
+Used only when the extension is installed or updated: Chrome cuts off the script already running in quran.com tabs that are open at that moment, so the extension runs a fresh copy of its own bundled content script (content.js) in those quran.com tabs so the user's place keeps saving. No other pages, no remote code.
+
 **idle**
 Detects when the screen is unlocked, so the Quran tab can be brought forward once a day. No idle data is stored or sent.
 

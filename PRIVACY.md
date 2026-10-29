@@ -68,4 +68,4 @@ The settings (the on/off switch for the once-a-day return, and whether to show i
 
 The toolbar menu has a "Talk to the developer" link that opens the developer's Instagram page in a new tab. It is a plain link; the extension sends nothing.
 
-_Last updated: 29 October 2026 (version 1.6.0)_
+_Last updated: 29 October 2026 (version 1.6.1)_

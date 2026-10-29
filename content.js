@@ -6,6 +6,16 @@
 // Saving only starts after you interact (scroll, key, click, touch). Without
 // this, a freshly restored tab sitting at an old position would overwrite your
 // real saved verse the moment it loads.
+//
+// When the extension is updated or reloaded, the copy of this script already
+// running in an open tab is cut off and can no longer save. The extension then
+// runs a fresh copy in each open quran.com tab (background.js); only the newest
+// copy in a tab saves.
+
+{ // a block, so running this file again in the same tab can't clash with names from before
+const QR_INSTANCE = Math.random().toString(36).slice(2);
+globalThis.__quranResumeInstance = QR_INSTANCE;
+const qrIsCurrent = () => globalThis.__quranResumeInstance === QR_INSTANCE && !!chrome.runtime?.id;
 
 (() => {
   const VERSE_SELECTOR = "[data-verse-key]";
@@ -50,7 +60,7 @@
 
   function save() {
     saveTimer = null;
-    if (!armed) return;
+    if (!armed || !qrIsCurrent()) return;
     const key = currentVerseFromDom() || currentVerseFromUrl();
     if (!key || key === lastSaved) return;
     lastSaved = key;
@@ -83,6 +93,7 @@
   // Flush immediately when the tab is hidden or closed, and have a linked phone
   // get it now rather than after the usual few seconds.
   function flush() {
+    if (!qrIsCurrent()) return;
     if (saveTimer !== null) clearTimeout(saveTimer);
     save();
     try {
@@ -101,7 +112,7 @@
 // switch to turn that behaviour off.
 (() => {
   chrome.runtime.onMessage.addListener((msg) => {
-    if (msg && msg.type === "qr-wake-prompt") showPrompt();
+    if (msg && msg.type === "qr-wake-prompt" && qrIsCurrent()) showPrompt();
   });
 
   async function showPrompt() {
@@ -170,3 +181,4 @@
     setTimeout(() => host.remove(), 20000);
   }
 })();
+}
