@@ -13,7 +13,14 @@ h2 { font-size: 17px; margin: 0 0 6px; display: flex; align-items: center; gap: 
 .pick { display: flex; gap: 12px; }
 .pick label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
 .pick label:first-child { flex: 1; }
-select, input { font: inherit; font-size: 15px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--fg); }
+select, input { font: inherit; font-size: 15px; height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background-color: var(--card); color: var(--fg); }
+/* Chrome's own select arrow hugs the edge and makes the box shorter than the verse box beside it,
+   so draw the arrow ourselves at a matching height. */
+select { appearance: none; padding-right: 34px; background-repeat: no-repeat; background-position: right 12px center; background-size: 12px;
+         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%235b5f5d' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+@media (prefers-color-scheme: dark) {
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23b4b8b6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+}
 input { width: 90px; }
 .saved { margin: 12px 0 0 !important; color: var(--accent) !important; font-weight: 500; }
 .primary { border: 0; border-radius: 20px; padding: 9px 20px; background: var(--accent); color: var(--btn-fg); font: inherit; font-weight: 500; cursor: pointer; }

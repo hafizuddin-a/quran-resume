@@ -29,7 +29,9 @@ When your browser starts, it opens that surah in a pinned tab, scrolled to the v
 - Once a day, the first time your computer wakes or unlocks with the browser open, it brings the Quran tab to the front.
   You can turn this off.
 - Can sync your place to your other computers through Chrome sync.
-- No account and no analytics. It makes no network requests of its own.
+- Optional phone link: scan a QR code and the Quran Resume phone app keeps the same place as your computer, both ways.
+  It is off until you turn it on.
+- No account and no analytics. It makes no network requests of its own unless you turn on the phone link.
 
 Works in Chrome and other Chromium browsers (Edge, Brave, Ecosia and so on).
 
@@ -92,14 +94,20 @@ Before anything has been saved it opens Al-Fatihah, or the place you picked on t
 - Waking up. The extension notices an unlock, or a gap in a one-minute timer that means the computer slept. It acts
   on the first one each calendar day.
 - Syncing. With Sync my place on, the last verse is also written to Chrome's sync storage, and the newest save wins.
+- Phone link. **Link your phone** in the toolbar menu shows a QR code and a 6-digit code that work once, for 10
+  minutes. It needs no extra permission: the server, a Cloudflare Worker, accepts the extension's calls itself. The phone app (in [phone](phone)) is a Quran reader of
+  its own, so it saves your place as you scroll, the same as the extension does on quran.com. Both send their place
+  with the time it was saved, and the newest wins. **Unlink** deletes the place from the server.
 
 ## Privacy
 
 Your last verse (for example `2:9`) and the time it was saved are kept in your browser's extension storage. The
-extension never sends them anywhere. If you use Chrome sync and leave Sync my place on, Chrome keeps a copy in its own
+extension never sends them anywhere unless you turn on the phone link, which sends only your last verse, its time and a
+random pairing code to the Quran Resume server. If you use Chrome sync and leave Sync my place on, Chrome keeps a copy in its own
 sync storage and syncs it to your other signed-in browsers. There are no analytics, no remote code and no account.
 
 Permissions: `storage`, `idle` and `alarms` (to notice that the computer woke up), and access to `https://quran.com/*`.
+The phone link needs no extra permission.
 The full policy is in [PRIVACY.md](PRIVACY.md).
 
 ## What it can't do
@@ -135,6 +143,9 @@ There is no build step. Load this folder with **Load unpacked**.
 | [welcome.html](welcome.html), [welcome.css](welcome.css), [welcome.js](welcome.js) | The page shown once after install |
 | [options.html](options.html), [options.js](options.js) | The options page |
 | [surahs.js](surahs.js) | Surah names and verse counts |
+| [config.js](config.js) | The phone server's address |
+| [vendor](vendor) | The QR code generator used by the phone link (MIT) |
+| [phone](phone) | The phone app and its server: reader, reminders and place sync. Not part of the extension zip |
 | [icons](icons) | The logo as SVG and the PNG sizes the browser needs |
 
 `python3 tools/render-icons.py` redraws the PNG icons and the README logo from [icons/icon.svg](icons/icon.svg)

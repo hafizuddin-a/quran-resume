@@ -30,10 +30,11 @@ How it works:
 - Press Alt+Shift+Q (Option+Shift+Q on a Mac) to jump to your last verse from anywhere (you can change the shortcut).
 - Your place can follow you to your other computers through Chrome sync (switch in the menu).
 - Click the toolbar icon for a menu: your last chapter and verse, an Open Quran button, the once-a-day switch, and a link to message the developer.
+- New: link your phone. Scan a QR code from the menu to open the free Quran Resume phone app, which keeps your place in sync both ways and can send up to 3 gentle daily reading reminders. Optional, off by default, and it needs no extra permission.
 
 Private by design:
-- Your last verse is stored only on your device, in your browser's extension storage.
-- No accounts, no analytics, no tracking, no network requests of its own.
+- Your last verse is stored on your device, in your browser's extension storage.
+- No accounts, no analytics, no tracking. Nothing is sent anywhere unless you link a phone, and then only your last verse and when you saved it.
 - Open source (MIT): the full code is on GitHub.
 
 Quran Resume is an independent project and is not affiliated with Quran.com or the
@@ -58,14 +59,18 @@ A content script on quran.com reads which verse is near the top of the screen so
 user's place can be saved. The background script uses the same access to find an
 existing quran.com tab on startup and to open or focus one at the saved verse.
 
+**Phone link (no permission)**
+The optional phone link calls the developer's server at quran-resume.hello-hafiz.workers.dev. The
+server allows these requests itself (CORS), so no host permission is requested for it.
+
 **Remote code**
 No. All code is bundled in the package.
 
 ## Data usage disclosures (Privacy tab)
-- Collects user data: none of the listed categories are collected or transmitted to the developer.
-  The last verse is kept on the device and, if the user leaves sync on, in Chrome's own
-  sync storage. The developer never receives it.
-  The last verse is stored locally only.
+- Collects user data: **Website content** only, and only if the user turns on the optional phone
+  link: the last-read verse on quran.com (for example "2:9") and when it was saved are sent to the
+  developer's server (quran-resume.hello-hafiz.workers.dev) to sync with the user's phone. Nothing
+  else, and nothing at all without the phone link.
 - Certify: not sold to third parties; not used for purposes unrelated to the
   extension's single purpose; not used for creditworthiness or lending.
 

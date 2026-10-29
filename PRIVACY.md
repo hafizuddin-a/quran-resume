@@ -1,6 +1,7 @@
 # Privacy Policy
 
-**Quran Resume** does not collect, transmit, sell, or share any personal data.
+**Quran Resume** does not collect, sell, or share any personal data. It sends nothing over the
+network unless you turn on the optional phone link, described below.
 
 ## What the extension stores
 
@@ -10,6 +11,33 @@ storage (`chrome.storage.local`) on your own device. The extension itself never
 sends it anywhere. If "Sync my place" is on (the default) and you use Chrome sync,
 Chrome also keeps a copy in `chrome.storage.sync`, which Chrome syncs to your other
 signed-in browsers through your Google account. Turn this off in the toolbar menu.
+
+## Phone link (optional, off by default)
+
+If you choose **Link your phone** in the toolbar menu, the extension starts using the Quran Resume
+server (quran-resume.hello-hafiz.workers.dev, run on Cloudflare). It needs no extra browser permission
+for this. While the link is on:
+
+- It sends your last verse, the time it was saved, and a random pairing code to that server, and
+  reads back the newest place saved by your linked phone. Nothing else is sent: no account, name,
+  email, browsing history or other tabs.
+- The pairing code is created by the server and kept in the extension's local storage. It is not
+  tied to your identity. A 6-digit code shown in the menu lets a phone join; it works once, for 10
+  minutes.
+- **Unlink** in the toolbar menu deletes your place and pairing from the server. A pairing that no
+  phone joins is deleted automatically after a day. Removing the extension stops all sync but does
+  not delete the server copy, so unlink first if you want it gone.
+- To stop abuse (such as guessing link codes), the server counts wrong link codes per internet (IP)
+  address. Those counts are kept for at most an hour and are not linked to your place.
+
+## The Quran Resume phone app
+
+The phone app (quran-resume.hello-hafiz.workers.dev) keeps your place and reading settings on the
+phone itself. It loads Quran text from the Quran Foundation (api.quran.com) and fonts from Google
+Fonts and the same server. If you turn on daily reminders, the server stores a random id for the
+phone, its push address (from the browser's push service), your three reminder times, your time zone
+and which reminders were sent or acknowledged today. Turning reminders off stops them; the phone
+link works as described above.
 
 ## What the extension accesses
 
@@ -25,7 +53,7 @@ signed-in browsers through your Google account. Turn this off in the toolbar men
 ## What the extension does not do
 
 - No analytics, tracking, advertising, or telemetry.
-- No network requests of its own, and no remote code.
+- No network requests of its own unless you turn on the phone link, and no remote code.
 - No accounts or sign-in.
 
 ## Your control
@@ -40,4 +68,4 @@ The settings (the on/off switch for the once-a-day return, and whether to show i
 
 The toolbar menu has a "Talk to the developer" link that opens the developer's Instagram page in a new tab. It is a plain link; the extension sends nothing.
 
-_Last updated: 26 October 2026_
+_Last updated: 29 October 2026 (version 1.5.0)_

@@ -4,6 +4,8 @@
 // verse and make it the active tab. Session restore may finish after this runs
 // and switch focus back to an old tab, so activation is retried a few times.
 
+importScripts("config.js");
+
 const QURAN_MATCH = "https://quran.com/*";
 const DEFAULT_URL = "https://quran.com/1";
 
@@ -44,6 +46,7 @@ async function activate(tabId) {
 
 async function openQuran() {
   await pullFromSync();
+  await withTimeout(syncWithPhone(), 2500);
   const url = await getTargetUrl();
   const existing = await chrome.tabs.query({ url: QURAN_MATCH });
 
@@ -108,12 +111,142 @@ async function pullFromSync() {
   return false;
 }
 
+// ---- Phone link (optional, off by default) ----
+//
+// Shares your last verse with the Quran Resume phone app through the server at
+// PHONE_ORIGIN, newest save wins. Nothing is sent until you link a phone from the
+// toolbar menu. The server allows the calls itself (CORS), so no permission is needed.
+
+const withTimeout = (promise, ms) => Promise.race([promise, sleep(ms).then(() => false)]);
+
+async function phoneApi(path, body) {
+  const res = await fetch(`${PHONE_ORIGIN}/api/${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(out.error || String(res.status)), { status: res.status });
+  return out;
+}
+
+async function linkedPhoneCode() {
+  const { phoneCode } = await chrome.storage.local.get("phoneCode");
+  return phoneCode || null;
+}
+
+// Sends this computer's place, takes the phone's if it is newer, and returns
+// the server's answer ({ place, phones }). Throws if the server can't be reached.
+async function exchangeWithPhone(code) {
+  const { verseKey, savedAt = 0 } = await chrome.storage.local.get(["verseKey", "savedAt"]);
+  const out = await phoneApi("sync", verseKey && savedAt ? { code, verseKey, savedAt, age: Math.max(0, Date.now() - savedAt) } : { code });
+  const { place } = out;
+  // The server says how long ago the place was saved, so this computer's clock
+  // being off can't make an older place look newer (or the reverse).
+  const placeTime = place && (Number.isFinite(place.age) ? Date.now() - place.age : place.savedAt);
+  if (place && placeTime > savedAt && place.verseKey !== verseKey) {
+    await chrome.storage.local.set({ verseKey: place.verseKey, savedAt: placeTime });
+    // Move any open quran.com tab too, whatever noticed the change (menu, tab
+    // switch, wake): reading on in a tab left at the old place would save over it.
+    const url = urlForVerse(place.verseKey);
+    for (const tab of await chrome.tabs.query({ url: QURAN_MATCH })) chrome.tabs.update(tab.id, { url });
+  }
+  return out;
+}
+
+async function syncWithPhone() {
+  const code = await linkedPhoneCode();
+  if (!code) return;
+  try {
+    await exchangeWithPhone(code);
+  } catch (err) {
+    if (err.status === 404) await chrome.storage.local.remove("phoneCode"); // the link was turned off
+  }
+}
+
+// Starts a pairing if needed and returns a 6-digit code for a phone to join with.
+async function phoneLinkCode() {
+  const { phoneCode, verseKey, savedAt = 0 } = await chrome.storage.local.get(["phoneCode", "verseKey", "savedAt"]);
+  if (phoneCode) {
+    try {
+      return await phoneApi("pair/link-code", { code: phoneCode });
+    } catch (err) {
+      if (err.status !== 404) throw err; // 404: turned off elsewhere, so pair again below
+    }
+  }
+  const out = await phoneApi("pair", verseKey && savedAt ? { verseKey, savedAt, age: Math.max(0, Date.now() - savedAt) } : {});
+  await chrome.storage.local.set({ phoneCode: out.code });
+  return { linkCode: out.linkCode, expiresAt: out.expiresAt };
+}
+
+// Also takes a newer place from the phone, so the menu shows where you really are.
+async function phoneStatus() {
+  const code = await linkedPhoneCode();
+  if (!code) return { linked: false };
+  try {
+    const { phones } = await exchangeWithPhone(code);
+    return { linked: true, phones };
+  } catch (err) {
+    if (err.status === 404) {
+      await chrome.storage.local.remove("phoneCode");
+      return { linked: false };
+    }
+    return { linked: true, offline: true };
+  }
+}
+
+// Turning off deletes the place from the server.
+async function unlinkPhone() {
+  const { phoneCode } = await chrome.storage.local.get("phoneCode");
+  if (phoneCode) {
+    try {
+      await phoneApi("unpair", { code: phoneCode });
+    } catch (err) {
+      if (err.status !== 404) throw err;
+    }
+  }
+  await chrome.storage.local.remove("phoneCode");
+}
+
+// The phone link is event-driven, never polled: it sends 3 seconds after you
+// stop on a verse, at once when you leave the quran.com tab, and checks the
+// phone when you open the menu or come back to the tab. That is about one
+// request per verse read, however many people use it. (The 30-second sync
+// alarm below is the fallback if the service worker is stopped first.)
+let phonePushTimer = null;
+function phonePushSoon() {
+  clearTimeout(phonePushTimer);
+  phonePushTimer = setTimeout(syncWithPhone, 3000);
+}
+
 chrome.storage.onChanged.addListener(async (changes, area) => {
   if (area === "local" && changes.verseKey) {
+    phonePushSoon();
     if (!(await chrome.alarms.get(SYNC_ALARM))) chrome.alarms.create(SYNC_ALARM, { delayInMinutes: 0.5 });
   } else if (area === "sync" && changes.verseKey) {
     pullFromSync();
   }
+});
+
+// Coming back to the Quran tab, or to the browser while it's showing, picks up
+// a place read since on the phone and moves the tab there. At most every 10 s.
+let lastPhoneCheck = 0;
+async function checkPhoneForTab(tab) {
+  if (!tab || !/^https:\/\/quran\.com\//.test(tab.url || "") || Date.now() - lastPhoneCheck < 10000) return;
+  lastPhoneCheck = Date.now();
+  syncWithPhone(); // moves the tab itself if the phone is ahead
+}
+
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  try { checkPhoneForTab(await chrome.tabs.get(tabId)); } catch (err) { /* tab gone */ }
+});
+
+chrome.windows.onFocusChanged.addListener(async (windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, windowId });
+    checkPhoneForTab(tab);
+  } catch (err) { /* ignore */ }
 });
 
 
@@ -154,13 +287,14 @@ async function focusQuranOnce() {
   if (!wakeEnabled || lastOpenDay === todayKey()) return;
   await markToday();
   const movedOnAnotherComputer = await pullFromSync();
+  await withTimeout(syncWithPhone(), 2500);
   const existing = await chrome.tabs.query({ url: QURAN_MATCH });
   let tabId;
   if (existing.length > 0) {
     // Keep the tab as it is (it already shows your place), just bring it forward.
-    // If you read further on another computer, move it to that place first.
+    // If you read further on another computer or your phone, move it to that place first.
     tabId = existing[0].id;
-    if (movedOnAnotherComputer) await chrome.tabs.update(tabId, { url: await getTargetUrl() });
+    if (movedOnAnotherComputer) await chrome.tabs.update(tabId, { url: await getTargetUrl() }); // syncWithPhone moved it already for the phone
     await activate(tabId);
   } else {
     await openQuran();
@@ -184,7 +318,7 @@ chrome.idle.onStateChanged.addListener(async (state) => {
 // Sleep without a lock screen: the 1-minute timer stops while the computer
 // sleeps, so a gap between ticks means it just woke up.
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === SYNC_ALARM) return pushToSync();
+  if (alarm.name === SYNC_ALARM) return Promise.all([pushToSync(), syncWithPhone()]);
   if (alarm.name !== TICK_ALARM) return;
   const { lastTick } = await chrome.storage.local.get("lastTick");
   const now = Date.now();
@@ -203,9 +337,22 @@ chrome.runtime.onStartup.addListener(async () => {
   await openQuran();
 });
 
-// The toolbar popup asks us to open the Quran at the last verse.
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg && msg.type === "qr-open") openQuran();
+// The toolbar popup asks us to open the Quran at the last verse, or to manage the phone link.
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!msg) return;
+  if (msg.type === "qr-open") openQuran();
+  if (msg.type === "qr-phone-push") {
+    // A moment's delay lets the tab's final save land in storage first.
+    clearTimeout(phonePushTimer);
+    phonePushTimer = setTimeout(syncWithPhone, 300);
+    return;
+  }
+  const phone = { "qr-phone-code": phoneLinkCode, "qr-phone-status": phoneStatus, "qr-phone-off": unlinkPhone }[msg.type];
+  if (!phone) return;
+  phone()
+    .then((result) => sendResponse({ ok: true, ...result }))
+    .catch((err) => sendResponse({ ok: false, offline: !err.status, error: err.message }));
+  return true; // answer asynchronously
 });
 
 // Keyboard shortcut (default Alt+Shift+Q, changeable at chrome://extensions/shortcuts).
