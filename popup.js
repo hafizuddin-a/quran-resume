@@ -101,8 +101,8 @@ async function renderPhone() {
   $("phone-on").hidden = !linked || showingCode;
   $("phone-code").hidden = !showingCode;
   $("phone-on-text").textContent = status && status.offline
-    ? "Linked, but offline"
-    : "Linked";
+    ? "Offline right now."
+    : "Your place stays in sync.";
   return status;
 }
 
