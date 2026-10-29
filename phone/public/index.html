@@ -373,9 +373,9 @@ function loadBookmark() {
 
 // The app and a browser tab of it can be open at once and share this storage;
 // never let a copy that fell behind overwrite a newer place saved by another.
-function saveBookmark() {
+function saveBookmark(force = false) {
   if (!current.chapter) return;
-  if ((readSaved()?.savedAt || 0) > savedAt) return;
+  if (!force && (readSaved()?.savedAt || 0) > savedAt) return;
   try { localStorage.setItem(KEY, JSON.stringify({ ...current, savedAt })); } catch {}
 }
 
@@ -501,10 +501,17 @@ function showToast(text) {
   toastTimer = setTimeout(() => { $toast.hidden = true; }, 4000);
 }
 
+// Linking means "continue from my computer": its place is taken whenever it has
+// one, however recently this phone was opened somewhere else. Only a computer
+// with no place yet gets the phone's.
 async function linkWithCode(linkCode) {
   const out = await api('link', { linkCode });
   try { localStorage.setItem(PAIR_KEY, out.code); } catch {}
-  return out.place;
+  return parsePlace(out.place);
+}
+function parsePlace(place) {
+  const m = place && /^(\d{1,3}):(\d{1,3})$/.exec(place.verseKey);
+  return m ? { chapter: +m[1], verse: +m[2], savedAt: place.savedAt } : null;
 }
 
 async function getJSON(url) {
@@ -947,13 +954,13 @@ document.getElementById('link-form').addEventListener('submit', async e => {
     return;
   }
   try {
-    const place = newerPlace(await linkWithCode(code));
+    const place = await linkWithCode(code);
     document.getElementById('link-code').value = '';
     renderLink();
     if (place) {
       savedAt = place.savedAt;
       await openChapter(place.chapter, place.verse);
-      saveBookmark();
+      saveBookmark(true);
     } else {
       syncPlace(true);
     }
@@ -1065,13 +1072,15 @@ $main.addEventListener('click', e => {
 
   // A Home Screen app opened with the pairing in its address (see carryPair).
   const carried = new URLSearchParams(location.search).get('pair');
+  let linkedPlace = null;
   if (carried && !pairCode() && /^[\w-]{16,64}$/.test(carried)) {
     try { localStorage.setItem(PAIR_KEY, carried); } catch {}
-    linkedNow = !!(await syncPlace(false)) || !!pairCode(); // a turned-off pairing is forgotten again
+    linkedPlace = parsePlace(await syncPlace(false));
+    linkedNow = !!pairCode(); // a turned-off pairing is forgotten again
   }
   if (linkCode) {
     try {
-      await linkWithCode(linkCode);
+      linkedPlace = await linkWithCode(linkCode);
       linkedNow = true;
     } catch (err) {
       showToast(err.message);
@@ -1079,9 +1088,12 @@ $main.addEventListener('click', e => {
     if (!start.moved) start = readSaved() || { ...DEFAULT, savedAt: 0 }; // drop the ?link address
   }
 
-  // A place read more recently on the computer wins over this phone's, unless
-  // the app was opened with a link to a specific verse.
-  if (!start.moved) {
+  if (linkedPlace) {
+    start = linkedPlace; // just linked: continue from the computer
+    savedAt = linkedPlace.savedAt;
+  } else if (!start.moved) {
+    // A place read more recently on the computer wins over this phone's, unless
+    // the app was opened with a link to a specific verse.
     const place = newerPlace(await withTimeout(syncPlace(false), 2500));
     if (place) {
       start = place;
@@ -1100,8 +1112,8 @@ $main.addEventListener('click', e => {
     $surah.innerHTML = `<option value="${start.chapter}">Surah ${start.chapter}</option>`;
   }
   await openChapter(start.chapter, start.verse);
-  saveBookmark();
-  if (start.moved || linkedNow) syncPlace(true);
+  saveBookmark(!!linkedPlace);
+  if (start.moved || (linkedNow && !linkedPlace)) syncPlace(true);
   if (linkedNow && !isStandalone) {
     if (isIOS) {
       // Reload once so the page loads with the pairing manifest (see the <head>), then offer the install.
