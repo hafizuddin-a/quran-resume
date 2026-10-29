@@ -310,6 +310,7 @@
   <dialog id="popup-dialog" aria-labelledby="popup-title">
     <h2 id="popup-title">Make reminders pop up</h2>
     <ol class="steps" id="popup-steps"></ol>
+    <p id="popup-spam">If Chrome says <strong>Possible spam</strong>, tap <strong>Show notification</strong>, then <strong>Always allow</strong>.</p>
     <p class="msg" id="popup-msg"></p>
     <div class="actions">
       <button class="btn" id="popup-close">Done</button>
@@ -400,7 +401,10 @@ function setCurrent(chapter, verse, moved = false) {
 
 const PAIR_KEY = 'quran-pair';
 const pairCode = () => { try { return localStorage.getItem(PAIR_KEY); } catch { return null; } };
-const syncBody = () => ({ code: pairCode(), verseKey: `${current.chapter}:${current.verse}`, savedAt });
+// Places travel as "saved this long ago" (age), so devices whose clocks differ
+// still agree on which is newest; each converts to its own clock.
+const syncBody = () => ({ code: pairCode(), verseKey: `${current.chapter}:${current.verse}`, savedAt, age: Math.max(0, Date.now() - savedAt) });
+const localTime = place => (Number.isFinite(place.age) ? Date.now() - place.age : place.savedAt);
 
 function forgetPair() {
   try { localStorage.removeItem(PAIR_KEY); } catch {}
@@ -465,8 +469,8 @@ function flushPush() {
 
 function newerPlace(place) {
   const m = place && /^(\d{1,3}):(\d{1,3})$/.exec(place.verseKey);
-  if (!m || place.savedAt <= savedAt) return null;
-  return { chapter: +m[1], verse: +m[2], savedAt: place.savedAt };
+  if (!m || localTime(place) <= savedAt) return null;
+  return { chapter: +m[1], verse: +m[2], savedAt: localTime(place) };
 }
 
 const withTimeout = (promise, ms) => Promise.race([promise, new Promise(r => setTimeout(() => r(null), ms))]);
@@ -511,7 +515,7 @@ async function linkWithCode(linkCode) {
 }
 function parsePlace(place) {
   const m = place && /^(\d{1,3}):(\d{1,3})$/.exec(place.verseKey);
-  return m ? { chapter: +m[1], verse: +m[2], savedAt: place.savedAt } : null;
+  return m ? { chapter: +m[1], verse: +m[2], savedAt: localTime(place) } : null;
 }
 
 async function getJSON(url) {
@@ -924,9 +928,10 @@ const $popup = document.getElementById('popup-dialog');
 document.getElementById('popup-help').addEventListener('click', () => {
   const steps = isIOS
     ? ['Open your iPhone <strong>Settings</strong>.', 'Tap <strong>Notifications</strong>, then <strong>Quran</strong>.', 'Turn on <strong>Banners</strong>.']
-    : ['Tap <strong>Send a test</strong>.', '<strong>Long-press</strong> the notification and tap its <strong>settings</strong> icon.', 'If a list opens, tap <strong>quran-resume</strong> in it.', 'Turn on <strong>Pop on screen</strong>.'];
+    : ['Tap <strong>Send a test</strong>.', '<strong>Long-press</strong> the notification and tap its <strong>settings</strong> icon.', 'If a list opens, tap <strong>quran-resume</strong> (it may be under <strong>Sites</strong>).', 'Turn on <strong>Pop on screen</strong>.'];
   document.getElementById('popup-steps').innerHTML = steps.map(s => `<li>${s}</li>`).join('');
   document.getElementById('popup-test').hidden = isIOS;
+  document.getElementById('popup-spam').hidden = isIOS;
   document.getElementById('popup-msg').textContent = '';
   $popup.showModal();
 });

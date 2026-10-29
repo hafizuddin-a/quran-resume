@@ -200,11 +200,14 @@ async function getPair(env, code) {
 
 const VERSE_KEY = /^(\d{1,3}):(\d{1,3})$/;
 
-// Keeps the newer of the stored place and the incoming one.
-async function mergePlace(env, pair, verseKey, savedAt) {
+// Keeps the newer of the stored place and the incoming one. Devices send how
+// long ago they saved (age, by their own clock) rather than a clock time, so a
+// device whose clock is off can't win or lose wrongly; times are kept in this
+// server's clock. A bare savedAt is still accepted.
+async function mergePlace(env, pair, verseKey, savedAt, age) {
   if (verseKey === undefined) return pair;
   const m = VERSE_KEY.exec(String(verseKey));
-  const t = Number(savedAt);
+  const t = Number.isFinite(Number(age)) && age !== null && Number(age) >= 0 ? Date.now() - Number(age) : Number(savedAt);
   if (!m || +m[1] < 1 || +m[1] > 114 || +m[2] < 1 || +m[2] > 286) throw httpError(400, 'Invalid verse.');
   if (!Number.isFinite(t) || t <= 0 || t > Date.now() + 5 * 60_000) throw httpError(400, 'Invalid time.');
   if (t <= pair.saved_at) return pair;
@@ -213,7 +216,8 @@ async function mergePlace(env, pair, verseKey, savedAt) {
   return { ...pair, verse_key: String(verseKey), saved_at: t };
 }
 
-const placeOf = pair => (pair.verse_key ? { verseKey: pair.verse_key, savedAt: pair.saved_at } : null);
+// age: how long ago it was saved, for the device to place on its own clock.
+const placeOf = pair => (pair.verse_key ? { verseKey: pair.verse_key, savedAt: pair.saved_at, age: Math.max(0, Date.now() - pair.saved_at) } : null);
 
 async function newLinkCode(env, code) {
   for (let tries = 0; tries < 5; tries++) {
@@ -309,10 +313,10 @@ const routes = {
   },
 
   // Extension: start a pairing (optionally with its current place).
-  'POST /api/pair': async (env, { verseKey, savedAt }) => {
+  'POST /api/pair': async (env, { verseKey, savedAt, age }) => {
     const code = randomCode();
     await env.DB.prepare('INSERT INTO pairs (code, created_at) VALUES (?, ?)').bind(code, Date.now()).run();
-    await mergePlace(env, { code, saved_at: 0 }, verseKey, savedAt);
+    await mergePlace(env, { code, saved_at: 0 }, verseKey, savedAt, age);
     return { code, ...(await newLinkCode(env, code)) };
   },
 
@@ -334,8 +338,8 @@ const routes = {
   },
 
   // Either side: send your place (or just the code, to read it) and get the newest.
-  'POST /api/sync': async (env, { code, verseKey, savedAt }) => {
-    const pair = await mergePlace(env, await getPair(env, code), verseKey, savedAt);
+  'POST /api/sync': async (env, { code, verseKey, savedAt, age }) => {
+    const pair = await mergePlace(env, await getPair(env, code), verseKey, savedAt, age);
     return { place: placeOf(pair), phones: pair.phones };
   },
 

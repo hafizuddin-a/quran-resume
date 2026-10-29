@@ -139,10 +139,13 @@ async function linkedPhoneCode() {
 // the server's answer ({ place, phones }). Throws if the server can't be reached.
 async function exchangeWithPhone(code) {
   const { verseKey, savedAt = 0 } = await chrome.storage.local.get(["verseKey", "savedAt"]);
-  const out = await phoneApi("sync", verseKey && savedAt ? { code, verseKey, savedAt } : { code });
+  const out = await phoneApi("sync", verseKey && savedAt ? { code, verseKey, savedAt, age: Math.max(0, Date.now() - savedAt) } : { code });
   const { place } = out;
-  if (place && place.savedAt > savedAt && place.verseKey !== verseKey) {
-    await chrome.storage.local.set({ verseKey: place.verseKey, savedAt: place.savedAt });
+  // The server says how long ago the place was saved, so this computer's clock
+  // being off can't make an older place look newer (or the reverse).
+  const placeTime = place && (Number.isFinite(place.age) ? Date.now() - place.age : place.savedAt);
+  if (place && placeTime > savedAt && place.verseKey !== verseKey) {
+    await chrome.storage.local.set({ verseKey: place.verseKey, savedAt: placeTime });
     // Move any open quran.com tab too, whatever noticed the change (menu, tab
     // switch, wake): reading on in a tab left at the old place would save over it.
     const url = urlForVerse(place.verseKey);
@@ -171,7 +174,7 @@ async function phoneLinkCode() {
       if (err.status !== 404) throw err; // 404: turned off elsewhere, so pair again below
     }
   }
-  const out = await phoneApi("pair", verseKey && savedAt ? { verseKey, savedAt } : {});
+  const out = await phoneApi("pair", verseKey && savedAt ? { verseKey, savedAt, age: Math.max(0, Date.now() - savedAt) } : {});
   await chrome.storage.local.set({ phoneCode: out.code });
   return { linkCode: out.linkCode, expiresAt: out.expiresAt };
 }
