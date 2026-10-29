@@ -822,7 +822,10 @@ function renderReminders(s) {
   else if (acked) $remToday.textContent = 'Done for today';
   else if (sent.length >= 3) $remToday.textContent = 'All 3 sent today';
   else {
-    const next = s.settings.times.find((t, i) => i > Math.max(-1, ...sent));
+    // A time that passed over an hour ago is skipped by the server, so it isn't next.
+    const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
+    const toMin = t => +t.slice(0, 2) * 60 + +t.slice(3);
+    const next = s.settings.times.find((t, i) => i > Math.max(-1, ...sent) && toMin(t) >= nowMin - 60);
     $remToday.textContent = next ? `Next at ${fmtTime(next)}` : 'No more today';
   }
 }
@@ -883,10 +886,21 @@ $timeInputs.forEach(input => input.addEventListener('change', async () => {
   }
 }));
 
+// The service worker reports each push it shows, so a test that never arrives
+// can be explained. Some browsers (Ecosia, for one) accept the subscription but
+// never deliver pushes.
+let testTimer;
+navigator.serviceWorker?.addEventListener('message', e => {
+  if (e.data?.type === 'pushed' && e.data.kind === 'test') clearTimeout(testTimer);
+});
 async function sendTest($msg) {
   $msg.textContent = '';
   try {
     await api('test', { phone: phoneId() });
+    clearTimeout(testTimer);
+    testTimer = setTimeout(() => {
+      $msg.textContent = 'The test didn’t arrive. This browser may not deliver reminders: open the app in Chrome instead.';
+    }, 20000);
     return true;
   } catch (err) {
     $msg.textContent = err.message;
@@ -897,12 +911,13 @@ document.getElementById('rem-test').addEventListener('click', () => sendTest($re
 
 // ---- "Make reminders pop up" guide ----
 // A web app can't open the phone's Settings, so this shows the shortest way
-// there. On Android that's the notification itself: long-press it, tap the gear.
+// there. On Android that's the notification itself: long-press it, tap the gear
+// (Chrome then opens its list of sites, with this one highlighted).
 const $popup = document.getElementById('popup-dialog');
 document.getElementById('popup-help').addEventListener('click', () => {
   const steps = isIOS
     ? ['Open your iPhone <strong>Settings</strong>.', 'Tap <strong>Notifications</strong>, then <strong>Quran</strong>.', 'Turn on <strong>Banners</strong>.']
-    : ['Tap <strong>Send a test</strong>.', '<strong>Long-press</strong> the notification and tap its <strong>settings</strong> icon.', 'Turn on <strong>Pop on screen</strong>.'];
+    : ['Tap <strong>Send a test</strong>.', '<strong>Long-press</strong> the notification and tap its <strong>settings</strong> icon.', 'If a list opens, tap <strong>quran-resume</strong> in it.', 'Turn on <strong>Pop on screen</strong>.'];
   document.getElementById('popup-steps').innerHTML = steps.map(s => `<li>${s}</li>`).join('');
   document.getElementById('popup-test').hidden = isIOS;
   document.getElementById('popup-msg').textContent = '';

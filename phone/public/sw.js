@@ -2,7 +2,7 @@
 // (stale-while-revalidate), so surahs you've opened work offline.
 // The Quran Foundation Developer Terms cap cached Quran content at 1 week
 // (font files are exempt), so API responses are timestamped and expire.
-const SHELL = 'shell-v8';
+const SHELL = 'shell-v9';
 const QURAN = 'quran-v1';
 const FONTS = 'fonts-v1';
 const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -128,7 +128,8 @@ self.addEventListener('push', e => {
       data,
       actions: [{ action: 'ack', title: 'I have read the Quran today' }],
     });
-  }));
+  }).then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+    .then(list => list.forEach(c => c.postMessage({ type: 'pushed', kind: data.kind })))); // lets the page see a test arrive
 });
 
 // "I have read the Quran today" acknowledges; tapping the notification itself also counts, and opens the app.
