@@ -224,9 +224,9 @@
     }
     .pick-row small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
     .pick-row svg { flex: none; width: 18px; height: 18px; color: var(--muted); }
-    /* The picker takes over the Settings sheet. */
-    #settings.picking { height: 85vh; height: 85dvh; }
-    #settings.picking > .bar, #settings.picking > .settings-body { display: none; }
+    /* The picker takes over the sheet it was opened from. */
+    .sheet.picking { height: 85vh; height: 85dvh; }
+    .sheet.picking > :not(.picker) { display: none; }
     .picker { flex: 1; min-height: 0; display: flex; flex-direction: column; }
     .picker > .bar { flex: none; width: 100%; max-width: none; gap: 4px; padding-left: 8px; padding-right: 8px; border-bottom: 1px solid var(--line); }
     .picker > .bar h1 { flex: 1; margin: 0 0 0 4px; font-size: 17px; font-weight: 600; }
@@ -258,6 +258,34 @@
     .player-info { flex: 1; min-width: 0; padding: 0 8px; font-size: 14px; font-weight: 500; }
     .player-info small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 400; color: var(--muted); }
     body.listening .toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
+    /* Word by word */
+    .words { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 6px; line-height: 1.7; }
+    .word {
+      display: flex; flex-direction: column; align-items: center; max-width: 100%; padding: 2px 4px; border: 0; border-radius: 8px;
+      font: inherit; color: inherit; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .word.sounding { color: var(--accent); background: var(--accent-soft); }
+    .word-end { padding: 2px 4px; }
+    .w-tr, .w-en {
+      display: block; max-width: calc(124px + var(--en-step, 0) * 6px); direction: ltr; text-align: center; text-wrap: balance; overflow-wrap: anywhere;
+      font-family: Figtree, system-ui, -apple-system, sans-serif; line-height: 1.3;
+    }
+    .w-en { font-size: calc(13px + var(--en-step, 0) * 1px); margin-top: 4px; }
+    .w-tr { font-size: calc(12px + var(--en-step, 0) * 1px); margin-top: 4px; color: var(--muted); font-style: italic; display: none; }
+    .word.sounding .w-tr { color: inherit; }
+    body.wbw-translit .w-tr { display: block; }
+    /* Tafsir */
+    #tafsir { height: 85vh; height: 85dvh; }
+    .tafsir-nav { display: flex; align-items: center; gap: 2px; margin-left: -8px; }
+    .tafsir-nav .act { width: 40px; height: 40px; color: var(--text); }
+    .tafsir-nav .act:disabled { opacity: .3; cursor: default; }
+    .sheet > .bar h1.tafsir-key { min-width: 64px; font-size: 16px; text-align: center; font-variant-numeric: tabular-nums; }
+    .tafsir-pick { flex: none; padding: 0 16px 12px; border-bottom: 1px solid var(--line); }
+    .tafsir-text { padding: 16px; font-size: calc(16px + var(--en-step, 0) * 2px); line-height: 1.65; overflow-wrap: anywhere; }
+    .tafsir-text p { margin: 0 0 14px; }
+    .tafsir-text h1, .tafsir-text h2, .tafsir-text h3, .tafsir-text h4 { margin: 20px 0 8px; font-size: 1.1em; font-weight: 600; line-height: 1.35; }
+    .tafsir-text > :first-child > :first-child, .tafsir-text > :first-child { margin-top: 0; }
+    .tafsir-text .credit { margin-top: 24px; }
     .settings-body { padding: 16px 16px 32px; }
     .card {
       background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
@@ -324,6 +352,7 @@
     <symbol id="i-open" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
     <symbol id="i-prev" viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></symbol>
     <symbol id="i-next" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
     <symbol id="i-left" viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></symbol>
     <symbol id="i-right" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
@@ -388,6 +417,12 @@
             <button data-size="en" data-by="1" aria-label="Larger translation">+</button>
           </div>
         </div>
+        <div class="row size-row">Word by word
+          <label class="switch"><input type="checkbox" id="wbw-on" aria-label="Word by word"><span></span></label>
+        </div>
+        <div class="row size-row" id="wbw-translit-row">Transliteration
+          <label class="switch"><input type="checkbox" id="wbw-translit" aria-label="Transliteration"><span></span></label>
+        </div>
         <button class="pick-row" data-picker="translation"><span><small>Translation</small><span id="pick-translation"></span></span><svg class="i" aria-hidden="true"><use href="#i-right"/></svg></button>
         <button class="pick-row" data-picker="reciter"><span><small>Reciter</small><span id="pick-reciter"></span></span><svg class="i" aria-hidden="true"><use href="#i-right"/></svg></button>
         <h3>Theme</h3>
@@ -432,16 +467,30 @@
       <p class="credit">Text, translations and recitations from <a href="https://quran.foundation" target="_blank" rel="noopener">Quran Foundation</a>.
         Fonts: KFGQPC Uthmanic Hafs and the Tajweed Mushaf by the King Fahd Complex, and IndoPak Nastaleeq by <a href="https://quranwbw.com" target="_blank" rel="noopener">QuranWBW</a>.</p>
     </div>
-    <div class="picker" id="picker" hidden>
-      <div class="bar">
-        <button class="act" id="picker-back" aria-label="Back"><svg class="i" aria-hidden="true"><use href="#i-left"/></svg></button>
-        <h1 id="picker-title"></h1>
-        <button class="act" id="picker-close" aria-label="Close"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
-      </div>
-      <div class="picker-search"><input type="search" id="picker-search" autocomplete="off" enterkeyhint="search"></div>
-      <div class="sheet-scroll" id="picker-list"></div>
-    </div>
   </section>
+
+  <section id="tafsir" class="sheet" role="dialog" aria-modal="true" aria-labelledby="tafsir-key" hidden>
+    <div class="bar">
+      <div class="tafsir-nav">
+        <button class="act" id="tafsir-prev" aria-label="Previous verse"><svg class="i" aria-hidden="true"><use href="#i-left"/></svg></button>
+        <h1 class="tafsir-key" id="tafsir-key"></h1>
+        <button class="act" id="tafsir-next" aria-label="Next verse"><svg class="i" aria-hidden="true"><use href="#i-right"/></svg></button>
+      </div>
+      <button class="btn" id="tafsir-close">Done</button>
+    </div>
+    <div class="tafsir-pick"><button class="pick-row" data-picker="tafsir"><span><small>Tafsir</small><span id="pick-tafsir"></span></span><svg class="i" aria-hidden="true"><use href="#i-right"/></svg></button></div>
+    <div class="sheet-scroll" id="tafsir-scroll"><div class="tafsir-text" id="tafsir-text" dir="auto"></div></div>
+  </section>
+
+  <div class="picker" id="picker" hidden>
+    <div class="bar">
+      <button class="act" id="picker-back" aria-label="Back"><svg class="i" aria-hidden="true"><use href="#i-left"/></svg></button>
+      <h1 id="picker-title"></h1>
+      <button class="act" id="picker-close" aria-label="Close"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="picker-search"><input type="search" id="picker-search" autocomplete="off" enterkeyhint="search"></div>
+    <div class="sheet-scroll" id="picker-list"></div>
+  </div>
   <main id="main"><div class="status">Loading…</div></main>
   <div class="toast" id="toast" role="status" hidden></div>
 
@@ -719,6 +768,12 @@ const prefChoice = (key, fallback) => {
 };
 let translation = prefChoice('quran-translation', { id: 20, name: 'Saheeh International' });
 let reciter = prefChoice('quran-reciter', { id: 7, name: 'Mishari Rashid al-‘Afasy' });
+let tafsir = prefChoice('quran-tafsir', { id: 169, name: 'Ibn Kathir (Abridged)' });
+let wordByWord = pref('quran-wbw', 'off', ['on', 'off']) === 'on';
+let showTransliteration = pref('quran-wbw-translit', 'off', ['on', 'off']) === 'on';
+document.body.classList.toggle('wbw-translit', showTransliteration);
+// Each word's text in the script's own font encoding.
+const WORD_FIELD = { uthmani: 'text_qpc_hafs', indopak: 'text_indopak', tajweed: 'code_v2,v2_page' };
 
 // The page fonts come in colour formats: COLRv1 for Chrome, and SVG (one set for
 // light, one for dark) for Safari, which doesn't draw COLRv1. They're served
@@ -791,7 +846,9 @@ const arabicOf = v => (SCRIPTS[script].words ? v.words : v[SCRIPTS[script].field
 
 async function fetchChapterVerses(id) {
   // text_uthmani is what Copy gives you: real text, whichever script is on screen.
-  const text = SCRIPTS[script].words ? 'words=true&word_fields=code_v2,v2_page&fields=text_uthmani' : `fields=${SCRIPTS[script].field},text_uthmani`;
+  // Meanings come with each word, so word by word (about 8 times the data) only loads when it's on.
+  const text = wordByWord ? `words=true&word_fields=${WORD_FIELD[script]}&word_translation_language=en&fields=text_uthmani`
+    : SCRIPTS[script].words ? 'words=true&word_fields=code_v2,v2_page&fields=text_uthmani' : `fields=${SCRIPTS[script].field},text_uthmani`;
   const url = p => `${API}/verses/by_chapter/${id}?per_page=50&page=${p}&${text}&translations=${translation.id}`;
   const first = await getJSON(url(1));
   const rest = await Promise.all(
@@ -811,6 +868,17 @@ function plainTranslation(html) {
 
 const icon = name => `<svg class="i" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 
+// The verse as separate words, each with its meaning; the last is the verse number.
+function wordsHTML(v) {
+  const arabic = w => (SCRIPTS[script].words ? arabicHTML([w]) : escapeHTML(w[WORD_FIELD[script]] || w.text || ''));
+  const words = (v.words || []).map(w => (w.char_type_name === 'word'
+    ? `<button class="word" data-word="${w.position}"><span dir="rtl">${arabic(w)}</span>
+        <span class="w-tr">${escapeHTML(w.transliteration?.text || '')}</span>
+        <span class="w-en">${escapeHTML((w.translation?.text || '').trim())}</span></button>`
+    : `<span class="word-end">${arabic(w)}</span>`));
+  return `<div class="ar words${SCRIPTS[script].words ? ' qpc' : ''}">${words.join('')}</div>`;
+}
+
 function verseHTML(v, id) {
   const key = escapeHTML(String(v.verse_key));
   const saved = savedVerses.includes(`${id}:${v.verse_number}`);
@@ -820,11 +888,12 @@ function verseHTML(v, id) {
         <span class="key">${key}</span>
         <button class="act" data-act="play" aria-label="Play ${key}">${icon('play')}</button>
         <button class="act${saved ? ' on' : ''}" data-act="save" aria-label="Save ${key}" aria-pressed="${saved}">${icon('save')}</button>
+        <button class="act" data-act="tafsir" aria-label="Tafsir for ${key}">${icon('book')}</button>
         <button class="act push" data-act="copy" aria-label="Copy ${key}">${icon('copy')}</button>
         <button class="act" data-act="share" aria-label="Share ${key}">${icon('share')}</button>
         <a class="act" data-act="open" href="https://quran.com/${id}?startingVerse=${v.verse_number}" target="_blank" rel="noopener" aria-label="Open ${key} on quran.com">${icon('open')}</a>
       </div>
-      <p class="ar${SCRIPTS[script].words ? ' qpc' : ''}">${arabicHTML(arabicOf(v))}</p>
+      ${wordByWord ? wordsHTML(v) : `<p class="ar${SCRIPTS[script].words ? ' qpc' : ''}">${arabicHTML(arabicOf(v))}</p>`}
       <p class="en" dir="auto">${escapeHTML(plainTranslation(v.translations?.[0]?.text || ''))}</p>
     </article>`;
 }
@@ -836,6 +905,7 @@ function showSurahName(id) {
 
 async function openChapter(id, verse, moved = false) {
   restoring = true;
+  wordAudio.pause();
   if (player.chapter && player.chapter !== id) stopPlayer();
   showSurahName(id);
   $main.innerHTML = '<div class="status">Loading…</div>';
@@ -985,6 +1055,8 @@ async function shareVerse(v) {
 }
 
 $main.addEventListener('click', e => {
+  const $word = e.target.closest('[data-word]');
+  if ($word) return playWord($word);
   const $act = e.target.closest('[data-act]');
   const $verse = $act?.closest('.verse');
   if (!$verse) return;
@@ -994,7 +1066,8 @@ $main.addEventListener('click', e => {
   if ($act.dataset.act === 'play') {
     if (player.chapter === current.chapter && player.verse === n) togglePlayer();
     else playVerse(current.chapter, n);
-  } else if ($act.dataset.act === 'save') toggleSaved($act, key);
+  } else if ($act.dataset.act === 'tafsir') openTafsir(current.chapter, n);
+  else if ($act.dataset.act === 'save') toggleSaved($act, key);
   else if ($act.dataset.act === 'copy' && v) copyVerse(v);
   else if ($act.dataset.act === 'share' && v) shareVerse(v);
   else if ($act.dataset.act === 'open' && typeof $leave.showModal === 'function') { // old browsers just follow the link
@@ -1032,8 +1105,36 @@ function audioUrls(chapter) {
 
 const verseCount = chapter => chapters.find(c => c.id === chapter)?.verses_count || (chapter === current.chapter ? loadedVerses.length : 0);
 
+// One word's sound, from tapping it. Verse audio pauses so the two don't overlap.
+const wordAudio = new Audio();
+let $soundingWord = null;
+function wordDone() {
+  $soundingWord?.classList.remove('sounding');
+  $soundingWord = null;
+}
+wordAudio.addEventListener('ended', wordDone);
+wordAudio.addEventListener('pause', wordDone);
+wordAudio.addEventListener('error', () => {
+  if (!$soundingWord) return;
+  wordDone();
+  showToast('Couldn’t load the audio. Check your connection.');
+});
+function playWord($word) {
+  const n = +$word.closest('.verse').dataset.verse;
+  const word = loadedVerses.find(v => v.verse_number === n)?.words?.find(w => w.position === +$word.dataset.word);
+  if (!word?.audio_url) return;
+  if (player.loading) stopPlayer();
+  else if (player.chapter) audio.pause();
+  wordDone();
+  wordAudio.src = `https://verses.quran.com/${word.audio_url}`;
+  $soundingWord = $word;
+  $word.classList.add('sounding');
+  wordAudio.play().catch(() => {}); // a failed file reports through 'error' above
+}
+
 async function playVerse(chapter, verse, follow = false) {
   const run = ++player.run;
+  wordAudio.pause();
   if (!audioUnlocked) {
     audioUnlocked = true;
     audio.src = SILENCE;
@@ -1075,6 +1176,7 @@ function stepPlayer(by) {
 }
 
 function togglePlayer() {
+  wordAudio.pause();
   if (audio.paused) audio.play().catch(() => {});
   else audio.pause();
 }
@@ -1513,6 +1615,9 @@ function renderReading() {
   if (SCRIPTS[script].words) { loadPage(1); showLoadedPages(); }
   renderSizes();
   renderPickRows();
+  document.getElementById('wbw-on').checked = wordByWord;
+  document.getElementById('wbw-translit').checked = showTransliteration;
+  document.getElementById('wbw-translit-row').hidden = !wordByWord;
 }
 
 // Text sizes, as steps from the usual size; the style sets the actual sizes.
@@ -1559,10 +1664,19 @@ const pickers = {
       if (player.chapter) playVerse(player.chapter, player.verse);
     },
   },
+  tafsir: {
+    title: 'Tafsir', search: 'Search tafsirs', key: 'quran-tafsir', groups: null,
+    chosen: () => tafsir,
+    apply(choice) {
+      tafsir = choice;
+      loadTafsir();
+    },
+  },
 };
 let pickerName = null; // the picker showing, if any
 let pickersFailed = false;
-let settingsScroll = 0;
+let $pickerSheet = null;
+let sheetScroll = 0;
 const $picker = document.getElementById('picker');
 const $pickerList = document.getElementById('picker-list');
 const $pickerSearch = document.getElementById('picker-search');
@@ -1575,16 +1689,20 @@ let pickersLoading = null;
 function loadPickers() {
   if (pickers.translation.groups) return Promise.resolve();
   pickersLoading ||= Promise.all([
-    getJSON(`${API}/resources/translations`), getJSON(`${API}/resources/recitations`),
-  ]).then(([{ translations }, { recitations }]) => {
+    getJSON(`${API}/resources/translations`), getJSON(`${API}/resources/recitations`), getJSON(`${API}/resources/tafsirs`),
+  ]).then(([{ translations }, { recitations }, { tafsirs }]) => {
     const language = t => { const l = t.language_name.split(',')[0]; return l[0].toUpperCase() + l.slice(1).toLowerCase(); };
-    const byLanguage = new Map();
-    for (const t of translations) {
-      const l = language(t);
-      if (!byLanguage.has(l)) byLanguage.set(l, []);
-      byLanguage.get(l).push({ id: t.id, name: t.translated_name?.name || t.name, also: t.author_name || '' });
-    }
-    pickers.translation.groups = [...byLanguage].sort(([a], [b]) => (b === 'English') - (a === 'English') || a.localeCompare(b));
+    const byLanguage = list => {
+      const groups = new Map();
+      for (const t of list) {
+        const l = language(t);
+        if (!groups.has(l)) groups.set(l, []);
+        groups.get(l).push({ id: t.id, name: t.translated_name?.name || t.name, also: t.author_name || '' });
+      }
+      return [...groups].sort(([a], [b]) => (b === 'English') - (a === 'English') || a.localeCompare(b));
+    };
+    pickers.translation.groups = byLanguage(translations);
+    pickers.tafsir.groups = byLanguage(tafsirs);
     pickers.reciter.groups = [['', recitations.map(r => {
       const name = r.reciter_name.replace(/`/g, '‘');
       return { id: r.id, name, tag: r.style || 'Murattal', saved: r.style ? `${name} (${r.style})` : name };
@@ -1616,10 +1734,11 @@ function renderPicker() {
 }
 
 async function openPicker(name) {
-  const $body = $settings.querySelector('.settings-body');
-  settingsScroll = $body.scrollTop;
+  $pickerSheet = $openSheet;
+  sheetScroll = $pickerSheet.querySelector('.sheet-scroll').scrollTop;
   pickerName = name;
-  $settings.classList.add('picking');
+  $pickerSheet.append($picker);
+  $pickerSheet.classList.add('picking');
   $picker.hidden = false;
   document.getElementById('picker-title').textContent = pickers[name].title;
   $pickerSearch.placeholder = pickers[name].search;
@@ -1637,8 +1756,8 @@ function hidePicker() {
   if (!pickerName) return;
   pickerName = null;
   $picker.hidden = true;
-  $settings.classList.remove('picking');
-  $settings.querySelector('.settings-body').scrollTop = settingsScroll; // it was out of the page, which resets it
+  $pickerSheet.classList.remove('picking');
+  $pickerSheet.querySelector('.sheet-scroll').scrollTop = sheetScroll; // it was out of the page, which resets it
   renderPickRows();
 }
 document.querySelectorAll('[data-picker]').forEach($row => $row.addEventListener('click', () => openPicker($row.dataset.picker)));
@@ -1660,6 +1779,99 @@ $pickerList.addEventListener('click', e => {
 });
 document.getElementById('picker-back').addEventListener('click', () => history.back());
 document.getElementById('picker-close').addEventListener('click', closeSheet);
+
+// ---- tafsir ----
+// One slide-up panel, read a verse at a time. Sheets pause place tracking, so
+// reading here leaves your saved place alone.
+const $tafsir = document.getElementById('tafsir');
+const $tafsirText = document.getElementById('tafsir-text');
+const tafsirAt = { chapter: 0, verse: 0, first: 0, last: 0, run: 0 };
+
+// Tafsir arrives as HTML from another service: only plain structure is kept, as new
+// elements with no attributes, so nothing in it can run or restyle the page.
+const TAFSIR_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i', 'br', 'ul', 'ol', 'li', 'blockquote', 'sup', 'sub']);
+const TAFSIR_BLOCKS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'li', 'blockquote']);
+const TAFSIR_DROPPED = new Set(['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math', 'template', 'noscript', 'link', 'meta', 'form']);
+function appendClean($to, $from) {
+  for (const node of $from.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) $to.append(node.textContent);
+    if (node.nodeType !== Node.ELEMENT_NODE || TAFSIR_DROPPED.has(node.localName)) continue;
+    if (!TAFSIR_TAGS.has(node.localName)) { appendClean($to, node); continue; } // keep the words, lose the tag
+    const $el = document.createElement(node.localName);
+    if (TAFSIR_BLOCKS.has(node.localName)) $el.dir = 'auto'; // Arabic and Urdu read right to left
+    appendClean($el, node);
+    $to.append($el);
+  }
+}
+
+function showTafsirMessage(text, retry) {
+  $tafsirText.innerHTML = `<div class="status">${escapeHTML(text)}${retry ? '<div class="next"><button class="btn" id="tafsir-retry">Try again</button></div>' : ''}</div>`;
+}
+function renderTafsirNav() {
+  const { chapter, first, last } = tafsirAt;
+  document.getElementById('tafsir-key').textContent = first === last ? `${chapter}:${first}` : `${chapter}:${first}–${last}`;
+  document.getElementById('tafsir-prev').disabled = first <= 1;
+  document.getElementById('tafsir-next').disabled = last >= verseCount(chapter);
+}
+async function loadTafsir() {
+  const run = ++tafsirAt.run;
+  const { chapter, verse } = tafsirAt;
+  tafsirAt.first = tafsirAt.last = verse;
+  renderTafsirNav();
+  renderPickRows();
+  document.getElementById('tafsir-scroll').scrollTop = 0;
+  showTafsirMessage('Loading…');
+  let entry;
+  try {
+    ({ tafsir: entry } = await getJSON(`${API}/tafsirs/${tafsir.id}/by_ayah/${chapter}:${verse}`));
+  } catch {
+    if (run === tafsirAt.run) showTafsirMessage('Couldn’t load the tafsir. Check your connection.', true);
+    return;
+  }
+  if (run !== tafsirAt.run) return;
+  // An explanation can cover several verses; next and previous step past all of them.
+  const covered = Object.keys(entry.verses || {}).map(k => k.split(':').map(Number)).filter(([c]) => c === chapter).map(([, v]) => v);
+  if (covered.length) {
+    tafsirAt.first = Math.min(...covered);
+    tafsirAt.last = Math.max(...covered);
+    renderTafsirNav();
+  }
+  const body = new DOMParser().parseFromString(entry.text || '', 'text/html').body;
+  if (!body.textContent.trim()) return showTafsirMessage(`${tafsir.name} has nothing for this verse.`);
+  $tafsirText.textContent = '';
+  appendClean($tafsirText, body);
+  const $credit = Object.assign(document.createElement('p'), { className: 'credit', dir: 'ltr' });
+  $credit.append(`Tafsir: ${tafsir.name}. Via `);
+  $credit.append(Object.assign(document.createElement('a'), { href: 'https://quran.foundation', target: '_blank', rel: 'noopener', textContent: 'Quran Foundation' }));
+  $credit.append(' (quran.com).');
+  $tafsirText.append($credit);
+}
+function openTafsir(chapter, verse) {
+  Object.assign(tafsirAt, { chapter, verse });
+  showSheet($tafsir);
+  loadTafsir();
+}
+document.getElementById('tafsir-prev').addEventListener('click', () => { tafsirAt.verse = tafsirAt.first - 1; loadTafsir(); });
+document.getElementById('tafsir-next').addEventListener('click', () => { tafsirAt.verse = tafsirAt.last + 1; loadTafsir(); });
+document.getElementById('tafsir-close').addEventListener('click', closeSheet);
+$tafsirText.addEventListener('click', e => { if (e.target.id === 'tafsir-retry') loadTafsir(); });
+
+// Word by word reloads the surah at the same verse; it isn't a move.
+document.getElementById('wbw-on').addEventListener('change', e => {
+  wordByWord = e.target.checked;
+  try { localStorage.setItem('quran-wbw', wordByWord ? 'on' : 'off'); } catch {}
+  renderReading();
+  if (current.chapter) openChapter(current.chapter, current.verse);
+});
+document.getElementById('wbw-translit').addEventListener('change', e => {
+  showTransliteration = e.target.checked;
+  try { localStorage.setItem('quran-wbw-translit', showTransliteration ? 'on' : 'off'); } catch {}
+  document.body.classList.toggle('wbw-translit', showTransliteration);
+  if (current.chapter) { // new line lengths: stay on the same verse
+    anchorTo(current.verse);
+    holdAnchor(current.verse, 300);
+  }
+});
 
 // A new script reloads the surah at the same verse; it isn't a move.
 document.querySelectorAll('input[name="script"]').forEach(input => input.addEventListener('change', () => {
