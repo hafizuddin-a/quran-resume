@@ -92,8 +92,8 @@ let watchTimer = null;
 
 // Linked means a phone has joined. A pairing still waiting for its first phone
 // shows as not linked, with its code if one is showing.
-async function renderPhone() {
-  const status = await chrome.runtime.sendMessage({ type: "qr-phone-status" });
+async function renderPhone(type = "qr-phone-status") {
+  const status = await chrome.runtime.sendMessage({ type });
   const linked = !!(status && status.linked && (status.offline || status.phones > 0));
   const showingCode = Date.now() < codeUntil;
   phones = (status && status.phones) || 0;
@@ -128,7 +128,7 @@ function watchForPhone(before) {
   clearInterval(watchTimer);
   watchTimer = setInterval(async () => {
     const expired = Date.now() >= codeUntil;
-    const status = await renderPhone();
+    const status = await renderPhone("qr-phone-watch");
     if (status && status.linked && status.phones > before) {
       codeUntil = 0;
       clearInterval(watchTimer);
@@ -137,7 +137,7 @@ function watchForPhone(before) {
       clearInterval(watchTimer);
       phoneMessage("The code expired. Get a new one when you're ready.");
     }
-  }, 3000);
+  }, 5000);
 }
 
 $("phone-link").addEventListener("click", showCode);

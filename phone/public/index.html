@@ -312,6 +312,14 @@
       font: inherit; color: var(--text); background: var(--bg);
       border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px;
     }
+    /* Our own arrow, inset from the edge: the phone's built-in one sits against the border. */
+    .times input {
+      position: relative; -webkit-appearance: none; appearance: none; width: 132px; min-height: 40px; padding-right: 36px; text-align: left;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center; background-size: 16px;
+    }
+    /* Where the browser has its own picker button, it covers the whole field, unseen. */
+    .times input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
     .times[aria-disabled="true"] { opacity: .5; }
     .today { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
     .card > .hint { margin-top: 4px; }
@@ -464,7 +472,7 @@
         </div>
         <p class="msg" id="link-msg"></p>
       </div>
-      <p class="credit">Text, translations and recitations from <a href="https://quran.foundation" target="_blank" rel="noopener">Quran Foundation</a>.
+      <p class="credit">Quran text, translations, tafsir, word meanings and recitations from <a href="https://quran.foundation" target="_blank" rel="noopener">Quran Foundation</a>.
         Fonts: KFGQPC Uthmanic Hafs and the Tajweed Mushaf by the King Fahd Complex, and IndoPak Nastaleeq by <a href="https://quranwbw.com" target="_blank" rel="noopener">QuranWBW</a>.</p>
     </div>
   </section>
@@ -521,6 +529,15 @@
     <div class="actions">
       <button class="btn" id="popup-close">Done</button>
       <button class="btn primary" id="popup-test">Send a test</button>
+    </div>
+  </dialog>
+
+  <dialog id="link-ask" aria-labelledby="link-ask-title">
+    <h2 id="link-ask-title">Link this computer?</h2>
+    <p id="link-ask-text"></p>
+    <div class="actions">
+      <button class="btn" id="link-ask-no">Not now</button>
+      <button class="btn primary" id="link-ask-yes">Link</button>
     </div>
   </dialog>
 
@@ -624,8 +641,18 @@ const pairCode = () => { try { return localStorage.getItem(PAIR_KEY); } catch { 
 const syncBody = () => ({ code: pairCode(), verseKey: `${current.chapter}:${current.verse}`, savedAt, age: Math.max(0, Date.now() - savedAt) });
 const localTime = place => (Number.isFinite(place.age) ? Date.now() - place.age : place.savedAt);
 
+// Remembered once unlinked: a Home Screen app's start address keeps its old pairing
+// (see carryPair), and reopening the app mustn't link it again.
+const DROPPED_KEY = 'quran-pair-dropped';
 function forgetPair() {
-  try { localStorage.removeItem(PAIR_KEY); } catch {}
+  try {
+    const code = pairCode();
+    if (code) localStorage.setItem(DROPPED_KEY, code);
+    localStorage.removeItem(PAIR_KEY);
+  } catch {}
+}
+function droppedPair() {
+  try { return localStorage.getItem(DROPPED_KEY); } catch { return null; }
 }
 
 // An iPhone Home Screen app doesn't share Safari's storage, so while linked in
@@ -734,8 +761,11 @@ function showToast(text) {
 // one, however recently this phone was opened somewhere else. Only a computer
 // with no place yet gets the phone's.
 async function linkWithCode(linkCode) {
+  const before = pairCode();
   const out = await api('link', { linkCode });
   try { localStorage.setItem(PAIR_KEY, out.code); } catch {}
+  // Moving to another computer: the old one stops showing this phone as linked.
+  if (before && before !== out.code) api('leave', { code: before }).catch(() => {});
   return parsePlace(out.place);
 }
 function parsePlace(place) {
@@ -1157,7 +1187,7 @@ async function playVerse(chapter, verse, follow = false) {
     audio.src = SILENCE;
     audio.play().catch(() => {});
   }
-  Object.assign(player, { chapter, verse, loading: true });
+  Object.assign(player, { chapter, verse, loading: true, newReciter: false });
   renderPlayer();
   if (follow) followVerse(chapter, verse);
   let url;
@@ -1194,6 +1224,7 @@ function stepPlayer(by) {
 
 function togglePlayer() {
   wordAudio.pause();
+  if (player.newReciter) return playVerse(player.chapter, player.verse);
   if (audio.paused) audio.play().catch(() => {});
   else audio.pause();
 }
@@ -1522,9 +1553,11 @@ $remOn.addEventListener('change', async () => {
 $timeInputs.forEach(input => input.addEventListener('change', async () => {
   if (!input.value) return;
   try {
+    $remMsg.textContent = '';
     renderReminders(await api('settings', { phone: phoneId(), times: $timeInputs.map(i => i.value) }));
   } catch (err) {
     $remMsg.textContent = err.message;
+    if (remStatus) renderReminders(remStatus); // back to the times that are really set
   }
 }));
 
@@ -1677,7 +1710,10 @@ const pickers = {
     chosen: () => reciter,
     apply(choice) {
       reciter = choice;
-      if (player.chapter) playVerse(player.chapter, player.verse);
+      if (!player.chapter) return;
+      if (player.loading || !audio.paused) return playVerse(player.chapter, player.verse);
+      player.newReciter = true; // paused stays paused; play picks up the new voice
+      renderPlayer();
     },
   },
   tafsir: {
@@ -1943,6 +1979,21 @@ $main.addEventListener('click', e => {
   }
 });
 
+// Asks before linking from an address: anyone could send a link like this, and the
+// computer on the other end shares your reading place.
+function askToLink() {
+  const $ask = document.getElementById('link-ask');
+  document.getElementById('link-ask-text').textContent = pairCode()
+    ? 'This phone is linked to another computer. Linking this one replaces it.'
+    : 'Only link your own computer. It shares your reading place with this phone.';
+  return new Promise(resolve => {
+    document.getElementById('link-ask-yes').onclick = () => $ask.close('yes');
+    document.getElementById('link-ask-no').onclick = () => $ask.close('no');
+    $ask.addEventListener('close', () => resolve($ask.returnValue === 'yes'), { once: true });
+    $ask.showModal();
+  });
+}
+
 (async function init() {
   let start = loadBookmark();
   savedAt = start.savedAt || 0;
@@ -1954,17 +2005,20 @@ $main.addEventListener('click', e => {
   // A Home Screen app opened with the pairing in its address (see carryPair).
   const carried = new URLSearchParams(location.search).get('pair');
   let linkedPlace = null;
-  if (carried && !pairCode() && /^[\w-]{16,64}$/.test(carried)) {
+  // Only there: anywhere else, a link someone sent you must not connect this phone to their computer.
+  if (carried && isIOS && isStandalone && !pairCode() && carried !== droppedPair() && /^[\w-]{16,64}$/.test(carried)) {
     try { localStorage.setItem(PAIR_KEY, carried); } catch {}
     linkedPlace = parsePlace(await syncPlace(false));
     linkedNow = !!pairCode(); // a turned-off pairing is forgotten again
   }
   if (linkCode) {
-    try {
-      linkedPlace = await linkWithCode(linkCode);
-      linkedNow = true;
-    } catch (err) {
-      showToast(err.message);
+    if (await askToLink()) {
+      try {
+        linkedPlace = await linkWithCode(linkCode);
+        linkedNow = true;
+      } catch (err) {
+        showToast(err.message);
+      }
     }
     if (!start.moved) start = readSaved() || { ...DEFAULT, savedAt: 0 }; // drop the ?link address
   }

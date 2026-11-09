@@ -24,6 +24,8 @@ const DEFAULT_TIMES = ['08:00', '13:00', '20:00'];
 const LATE_LIMIT_MIN = 60; // a reminder more than an hour late is skipped, not sent at an odd time
 const LINK_TTL_MS = 10 * 60 * 1000;
 const LINK_FAILURES_PER_10_MIN = 20; // wrong link codes allowed per visitor: guessing 1 of 1,000,000 stays hopeless
+const LINK_FAILURES_EVERYONE_PER_10_MIN = 200; // and from everyone together, so many addresses can't add up
+const IDLE_PAIR_MS = 180 * 86_400_000; // a pairing with no new place this long is deleted (say, the extension was removed)
 const IDLE_PHONE_MS = 30 * 86_400_000; // a phone without reminders, unchanged this long, is deleted
 const ECHO_MS = 60_000; // the same verse arriving again this soon is a device repeating itself, not a new read
 const ONE_PHONE = 'A phone is already linked. Unlink it in Quran Resume, then link again.';
@@ -89,7 +91,7 @@ function localNow(timeZone) {
 }
 
 const toMinutes = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-const validTimes = t => Array.isArray(t) && t.length === 3 && t.every(x => /^([01]\d|2[0-3]):[0-5]\d$/.test(x));
+const validTimes = t => Array.isArray(t) && t.length === 3 && new Set(t).size === 3 && t.every(x => /^([01]\d|2[0-3]):[0-5]\d$/.test(x));
 
 // ---- phones (reminders) ----
 
@@ -232,6 +234,7 @@ async function getPair(env, code) {
 }
 
 const VERSE_KEY = /^(\d{1,3}):(\d{1,3})$/;
+const VERSE_COUNTS = [7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6]; // verses in each surah
 
 // Keeps the newer of the stored place and the incoming one. Devices send how
 // long ago they saved (age, by their own clock) rather than a clock time, so a
@@ -241,7 +244,7 @@ async function mergePlace(env, pair, verseKey, savedAt, age) {
   if (verseKey === undefined) return pair;
   const m = VERSE_KEY.exec(String(verseKey));
   const t = Number.isFinite(Number(age)) && age !== null && Number(age) >= 0 ? Date.now() - Number(age) : Number(savedAt);
-  if (!m || +m[1] < 1 || +m[1] > 114 || +m[2] < 1 || +m[2] > 286) throw httpError(400, 'Invalid verse.');
+  if (!m || +m[2] < 1 || !(+m[2] <= VERSE_COUNTS[+m[1] - 1])) throw httpError(400, 'Invalid verse.');
   if (!Number.isFinite(t) || t <= 0 || t > Date.now() + 5 * 60_000) throw httpError(400, 'Invalid time.');
   if (t <= pair.saved_at) return pair;
   if (String(verseKey) === pair.verse_key && t - pair.saved_at < ECHO_MS) return pair;
@@ -369,7 +372,7 @@ const routes = {
     subscription = { endpoint: subscription.endpoint, keys: { p256dh: String(subscription.keys.p256dh), auth: String(subscription.keys.auth) } };
     await getPhone(env, phone);
     await env.DB.prepare('UPDATE phones SET subscription = ?, enabled = 1, time_zone = COALESCE(?, time_zone) WHERE id = ?')
-      .bind(JSON.stringify(subscription), validZone(settings.timeZone) ? settings.timeZone : null, phone).run();
+      .bind(JSON.stringify(subscription), validZone(settings?.timeZone) ? settings.timeZone : null, phone).run();
     await scheduleNext(env, phone);
     return phoneStatus(env, await getPhone(env, phone));
   },
@@ -377,14 +380,16 @@ const routes = {
   'POST /api/settings': async (env, { phone, times, timeZone, enabled }) => {
     await getPhone(env, phone);
     if (times !== undefined) {
-      if (!validTimes(times)) throw httpError(400, 'Times must be three HH:MM values.');
+      if (!validTimes(times)) throw httpError(400, 'Pick three different times.');
       await env.DB.prepare('UPDATE phones SET times = ? WHERE id = ?').bind(JSON.stringify([...times].sort()), phone).run();
     }
     if (timeZone !== undefined) {
       if (!validZone(timeZone)) throw httpError(400, 'Unknown time zone.');
       await env.DB.prepare('UPDATE phones SET time_zone = ? WHERE id = ?').bind(timeZone, phone).run();
     }
-    if (enabled !== undefined) await env.DB.prepare('UPDATE phones SET enabled = ? WHERE id = ?').bind(enabled ? 1 : 0, phone).run();
+    if (enabled) await env.DB.prepare('UPDATE phones SET enabled = 1 WHERE id = ?').bind(phone).run();
+    // Off means off: the push address isn't kept. Turning on again sends it afresh.
+    else if (enabled !== undefined) await env.DB.prepare('UPDATE phones SET enabled = 0, subscription = NULL WHERE id = ?').bind(phone).run();
     await scheduleNext(env, phone);
     return phoneStatus(env, await getPhone(env, phone));
   },
@@ -429,9 +434,9 @@ const routes = {
   'POST /api/link': async (env, { linkCode }, request) => {
     const ip = visitor(request);
     const minute = Math.floor(Date.now() / 60_000);
-    const { tries } = await env.DB.prepare('SELECT COALESCE(SUM(count), 0) AS tries FROM link_failures WHERE ip = ? AND minute > ?')
+    const { tries, everyone } = await env.DB.prepare('SELECT COALESCE(SUM(CASE WHEN ip = ? THEN count END), 0) AS tries, COALESCE(SUM(count), 0) AS everyone FROM link_failures WHERE minute > ?')
       .bind(ip, minute - 10).first();
-    if (tries >= LINK_FAILURES_PER_10_MIN) throw httpError(429, 'Too many tries. Wait a few minutes and try again.');
+    if (tries >= LINK_FAILURES_PER_10_MIN || everyone >= LINK_FAILURES_EVERYONE_PER_10_MIN) throw httpError(429, 'Too many tries. Wait a few minutes and try again.');
     const pair = /^\d{6}$/.test(String(linkCode))
       && await env.DB.prepare('SELECT * FROM pairs WHERE link_code = ? AND link_expires > ?').bind(String(linkCode), Date.now()).first();
     if (!pair) {
@@ -491,6 +496,7 @@ export default {
         const text = await request.text();
         if (text.length > 10_000) throw httpError(413, 'Too large.');
         body = text ? JSON.parse(text) : {};
+        if (!body || typeof body !== 'object' || Array.isArray(body)) throw httpError(400, 'Invalid request.');
       }
       return json(await route(env, body, request));
     } catch (err) {
@@ -514,12 +520,15 @@ export default {
       }));
     }
     ctx.waitUntil(Promise.allSettled(runs));
-    // Once an hour, drop pairings that no phone joined within a day, phones that never
-    // kept reminders on and haven't changed in a month, and old failed-link counts.
+    // Once an hour: drop pairings that no phone joined within a day or with no new place
+    // for 6 months, push addresses of phones with reminders off, phones without
+    // reminders that haven't changed in a month, and old failed-link counts.
     if (new Date(event.scheduledTime).getUTCMinutes() === 0) {
       ctx.waitUntil(env.DB.batch([
         env.DB.prepare('DELETE FROM pairs WHERE phones = 0 AND created_at < ? AND (link_expires IS NULL OR link_expires < ?)')
           .bind(Date.now() - 86_400_000, Date.now()),
+        env.DB.prepare('DELETE FROM pairs WHERE MAX(saved_at, created_at) < ?').bind(Date.now() - IDLE_PAIR_MS),
+        env.DB.prepare('UPDATE phones SET subscription = NULL WHERE enabled = 0 AND subscription IS NOT NULL'),
         env.DB.prepare('DELETE FROM phones WHERE subscription IS NULL AND (next_at IS NULL OR next_at < ?)').bind(Date.now() - IDLE_PHONE_MS),
         env.DB.prepare('DELETE FROM link_failures WHERE minute < ?').bind(Math.floor(Date.now() / 60_000) - 60),
       ]));

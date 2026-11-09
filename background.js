@@ -146,12 +146,23 @@ async function exchangeWithPhone(code) {
   const placeTime = place && (Number.isFinite(place.age) ? Date.now() - place.age : place.savedAt);
   if (place && placeTime > savedAt && place.verseKey !== verseKey) {
     await chrome.storage.local.set({ verseKey: place.verseKey, savedAt: placeTime });
-    // Move any open quran.com tab too, whatever noticed the change (menu, tab
-    // switch, wake): reading on in a tab left at the old place would save over it.
-    const url = urlForVerse(place.verseKey);
-    for (const tab of await chrome.tabs.query({ url: QURAN_MATCH })) chrome.tabs.update(tab.id, { url });
+    await moveReadingTab(urlForVerse(place.verseKey));
   }
   return out;
+}
+
+// Moves the tab you read in, whatever noticed the change (menu, tab switch, wake), so
+// reading on there doesn't save over the newer place. Only one tab, and never one
+// that isn't showing verses or where you're typing (a note would be lost): your
+// pinned Quran tab if it qualifies, otherwise the one used most recently.
+async function moveReadingTab(url) {
+  const candidates = [];
+  for (const tab of await chrome.tabs.query({ url: QURAN_MATCH })) {
+    const state = await chrome.tabs.sendMessage(tab.id, { type: "qr-tab-state" }).catch(() => null);
+    if (tab.discarded || (state && state.reading && !state.busy)) candidates.push(tab); // a discarded tab has nothing to lose
+  }
+  candidates.sort((a, b) => (b.pinned - a.pinned) || ((b.lastAccessed || 0) - (a.lastAccessed || 0)));
+  if (candidates[0]) await chrome.tabs.update(candidates[0].id, { url });
 }
 
 async function syncWithPhone() {
@@ -195,6 +206,18 @@ async function phoneStatus() {
   }
 }
 
+// While the menu shows a link code: has the phone joined yet? Sends nothing of yours.
+async function phoneWatch() {
+  const code = await linkedPhoneCode();
+  if (!code) return { linked: false };
+  try {
+    const { phones } = await phoneApi("sync", { code });
+    return { linked: true, phones };
+  } catch (err) {
+    return err.status === 404 ? { linked: false } : { linked: true, offline: true };
+  }
+}
+
 // Turning off deletes the place from the server.
 async function unlinkPhone() {
   const { phoneCode } = await chrome.storage.local.get("phoneCode");
@@ -208,11 +231,12 @@ async function unlinkPhone() {
   await chrome.storage.local.remove("phoneCode");
 }
 
-// The phone link is event-driven, never polled: it sends 3 seconds after you
-// stop on a verse, at once when you leave the quran.com tab, and checks the
-// phone when you open the menu or come back to the tab. That is about one
-// request per verse read, however many people use it. (The 30-second sync
-// alarm below is the fallback if the service worker is stopped first.)
+// The phone link is event-driven: it sends 3 seconds after you stop on a verse,
+// at once when you leave the quran.com tab, and checks the phone when you open
+// the menu or come back to the tab. That is about one request per verse read,
+// however many people use it. (The 30-second sync alarm below is the fallback if
+// the service worker is stopped first.) The one repeating check is the menu's
+// every 5 seconds while a link code is showing, for at most its 10 minutes.
 let phonePushTimer = null;
 function phonePushSoon() {
   clearTimeout(phonePushTimer);
@@ -347,7 +371,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     phonePushTimer = setTimeout(syncWithPhone, 300);
     return;
   }
-  const phone = { "qr-phone-code": phoneLinkCode, "qr-phone-status": phoneStatus, "qr-phone-off": unlinkPhone }[msg.type];
+  const phone = { "qr-phone-code": phoneLinkCode, "qr-phone-status": phoneStatus, "qr-phone-watch": phoneWatch, "qr-phone-off": unlinkPhone }[msg.type];
   if (!phone) return;
   phone()
     .then((result) => sendResponse({ ok: true, ...result }))

@@ -108,6 +108,17 @@ const qrIsCurrent = () => globalThis.__quranResumeInstance === QR_INSTANCE && !!
   window.addEventListener("pagehide", flush);
 })();
 
+// Tells the extension whether this tab can be moved to a place read on the phone:
+// it should be showing verses, and you shouldn't be in the middle of typing here.
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!msg || msg.type !== "qr-tab-state" || !qrIsCurrent()) return;
+  const active = document.activeElement;
+  const typing = !!active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName));
+  const unsaved = [...document.querySelectorAll("textarea, [contenteditable='true']")]
+    .some((el) => (el.value !== undefined ? el.value : el.textContent).trim());
+  sendResponse({ reading: !!document.querySelector("[data-verse-key]"), busy: typing || unsaved });
+});
+
 // Prompt shown by the extension after its once-a-day return to the Quran, with a
 // switch to turn that behaviour off.
 (() => {

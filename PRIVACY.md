@@ -25,20 +25,22 @@ for this. While the link is on:
   tied to your identity. A 6-digit code shown in the menu lets a phone join; it works once, for 10
   minutes.
 - **Unlink** in the toolbar menu deletes your place and pairing from the server. A pairing that no
-  phone joins is deleted automatically after a day. Removing the extension stops all sync but does
-  not delete the server copy, so unlink first if you want it gone.
+  phone joins is deleted automatically after a day, and any pairing with no new place for 6 months
+  is deleted too. Removing the extension stops all sync but leaves the server copy until then, so
+  unlink first if you want it gone sooner.
 - To stop abuse (such as guessing link codes), the server counts wrong link codes per internet (IP)
   address. Those counts are kept for at most an hour and are not linked to your place.
 
 ## The Quran Resume phone app
 
 The phone app (quran-resume.hello-hafiz.workers.dev) keeps your place and reading settings on the
-phone itself. It loads Quran text from the Quran Foundation (api.quran.com) and fonts from Google
+phone itself. It loads Quran text, translations, tafsir and word meanings from the Quran Foundation (api.quran.com) and fonts from Google
 Fonts and the same server. Verses you save stay on the phone. If you play a recitation, the audio
 comes directly from the Quran Foundation's audio hosts (verses.quran.com, mirrors.quranicaudio.com). If you turn on daily reminders, the server stores a random id for the
 phone, its push address (from the browser's push service), your three reminder times, your time zone
-and which reminders were sent or acknowledged today. Turning reminders off stops them; the phone
-link works as described above.
+and which reminders were sent or acknowledged today. Turning reminders off stops them and deletes the push
+address from the server at once. Your times and time zone stay so that turning reminders back on
+keeps them, and are deleted after a month with reminders off. The phone link works as described above.
 
 ## What the extension accesses
 
@@ -69,4 +71,4 @@ The settings (the on/off switch for the once-a-day return, and whether to show i
 
 The toolbar menu has a "Talk to the developer" link that opens the developer's Instagram page in a new tab. It is a plain link; the extension sends nothing.
 
-_Last updated: 9 November 2026 (version 1.6.4)_
+_Last updated: 9 November 2026 (version 1.6.5)
