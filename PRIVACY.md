@@ -34,7 +34,8 @@ for this. While the link is on:
 
 The phone app (quran-resume.hello-hafiz.workers.dev) keeps your place and reading settings on the
 phone itself. It loads Quran text from the Quran Foundation (api.quran.com) and fonts from Google
-Fonts and the same server. If you turn on daily reminders, the server stores a random id for the
+Fonts and the same server. Verses you save stay on the phone. If you play a recitation, the audio
+comes directly from the Quran Foundation's audio hosts (verses.quran.com, mirrors.quranicaudio.com). If you turn on daily reminders, the server stores a random id for the
 phone, its push address (from the browser's push service), your three reminder times, your time zone
 and which reminders were sent or acknowledged today. Turning reminders off stops them; the phone
 link works as described above.
@@ -68,4 +69,4 @@ The settings (the on/off switch for the once-a-day return, and whether to show i
 
 The toolbar menu has a "Talk to the developer" link that opens the developer's Instagram page in a new tab. It is a plain link; the extension sends nothing.
 
-_Last updated: 29 October 2026 (version 1.6.1)_
+_Last updated: 9 November 2026 (version 1.6.4)_

@@ -2,7 +2,7 @@
 // (stale-while-revalidate), so surahs you've opened work offline.
 // The Quran Foundation Developer Terms cap cached Quran content at 1 week
 // (font files are exempt), so API responses are timestamped and expire.
-const SHELL = 'shell-v12';
+const SHELL = 'shell-v13';
 const QURAN = 'quran-v1';
 const FONTS = 'fonts-v1';
 const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -62,7 +62,8 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  if (/(^|\.)quran\.com$/.test(url.hostname)) {
+  // Audio isn't touched here: it streams directly from its own hosts.
+  if (url.hostname === 'api.quran.com') {
     e.respondWith(quranContent(req));
   } else if (/fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) {
     e.respondWith(caches.open(FONTS).then(async cache => {

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Quran Resume</title>
   <meta name="description" content="Quran reader that remembers where you stopped.">
-  <meta name="theme-color" content="#f7f4ec" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#14171a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1f2125" media="(prefers-color-scheme: dark)">
   <script>
     // iPhone reads the manifest as the page loads and gives a Home Screen app its
     // start address, so when this Safari page is linked, point it at a manifest
@@ -18,9 +18,13 @@
         var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         var standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
         if (code && ios && !standalone) href = 'api/manifest?pair=' + encodeURIComponent(code);
+        var theme = localStorage.getItem('quran-theme');
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+        // Set before the first paint, so the text doesn't change size as the app opens.
+        var ar = +localStorage.getItem('quran-ar-size'), en = +localStorage.getItem('quran-en-size');
+        if (ar) document.documentElement.style.setProperty('--ar-step', ar - 4);
+        if (en) document.documentElement.style.setProperty('--en-step', en - 3);
       } catch (e) {}
-      var theme = localStorage.getItem('quran-theme');
-      if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
       var link = document.createElement('link');
       link.rel = 'manifest';
       link.href = href;
@@ -34,8 +38,8 @@
   <meta name="apple-mobile-web-app-title" content="Quran">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Loaded without blocking the first paint; the system font shows until Inter arrives. -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <!-- Loaded without blocking the first paint; the system font shows until Figtree arrives. -->
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <style>
     /* The fonts quran.com uses, served from this app so they work offline. */
     @font-face { font-family: UthmanicHafs; src: url(fonts/UthmanicHafs1Ver18.woff2) format("woff2"); font-display: swap; }
@@ -45,29 +49,30 @@
     :root[data-theme="light"] { color-scheme: light; }
     :root[data-theme="dark"] { color-scheme: dark; }
     :root {
-      --bg: #f7f4ec;
-      --surface: #fffdf8;
-      --text: #1f2328;
-      --muted: #6b6f76;
-      --line: #e6e0d2;
-      --accent: #2f6f5e;
-      --accent-soft: #e3efe9;
+      --bg: #fff;
+      --surface: #f4f5f6;
+      --text: #272727;
+      --muted: #666;
+      --line: #ebeef0;
+      --accent: #1f8187;
+      --accent-soft: #e4f3f4;
       --header-h: 56px;
+      --ar-base: 30px;
     }
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) {
-        --bg: #14171a;
-        --surface: #1b1f23;
-        --text: #e8e6e1;
-        --muted: #9aa0a6;
-        --line: #2b3036;
-        --accent: #7cc4ad;
-        --accent-soft: #1f2e2a;
+        --bg: #1f2125;
+        --surface: #2a2d32;
+        --text: #e7e9ea;
+        --muted: #a0a4a8;
+        --line: #3a3f44;
+        --accent: #e3b563;
+        --accent-soft: #3a3327;
       }
     }
     :root[data-theme="dark"] {
-      --bg: #14171a; --surface: #1b1f23; --text: #e8e6e1; --muted: #9aa0a6;
-      --line: #2b3036; --accent: #7cc4ad; --accent-soft: #1f2e2a;
+      --bg: #1f2125; --surface: #2a2d32; --text: #e7e9ea; --muted: #a0a4a8;
+      --line: #3a3f44; --accent: #e3b563; --accent-soft: #3a3327;
     }
     * { box-sizing: border-box; }
     html { scroll-padding-top: calc(var(--header-h) + env(safe-area-inset-top) + 12px); }
@@ -75,14 +80,13 @@
       margin: 0;
       background: var(--bg);
       color: var(--text);
-      font-family: Inter, system-ui, -apple-system, sans-serif;
+      font-family: Figtree, system-ui, -apple-system, sans-serif;
       -webkit-text-size-adjust: 100%;
     }
     header {
       position: fixed; inset: 0 0 auto 0; z-index: 10;
       padding-top: env(safe-area-inset-top);
-      background: color-mix(in srgb, var(--bg) 88%, transparent);
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      background: var(--bg);
       border-bottom: 1px solid var(--line);
     }
     .bar {
@@ -90,16 +94,19 @@
       display: flex; align-items: center; gap: 8px; padding: 0 16px;
     }
     select {
-      flex: 1; min-width: 0;
       font: inherit; font-weight: 500; color: var(--text);
       background: var(--surface); border: 1px solid var(--line);
       border-radius: 10px; padding: 8px 10px;
     }
-    .pos {
-      font-variant-numeric: tabular-nums; font-size: 14px; color: var(--accent);
-      background: var(--accent-soft); border-radius: 999px; padding: 6px 10px;
-      white-space: nowrap;
+    .surah-btn {
+      display: inline-flex; align-items: center; gap: 4px; min-width: 0; height: 36px; padding: 0 4px 0 0;
+      font: inherit; font-size: 16px; font-weight: 600; color: var(--text);
+      background: none; border: 0; cursor: pointer;
     }
+    .surah-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .surah-btn svg { width: 18px; height: 18px; flex: none; color: var(--muted); }
+    .pos { font-variant-numeric: tabular-nums; font-size: 14px; color: var(--muted); white-space: nowrap; margin-right: auto; }
+    svg.i { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .btn {
       display: inline-flex; align-items: center; justify-content: center;
       height: 36px; padding: 0 12px; border-radius: 10px;
@@ -113,19 +120,31 @@
       padding: calc(var(--header-h) + env(safe-area-inset-top) + 16px) 16px 40vh;
     }
     .bismillah {
-      font-family: UthmanicHafs, serif; font-size: 30px; text-align: center;
+      font-family: UthmanicHafs, serif; font-size: calc(var(--ar-base) + var(--ar-step, 0) * 3px); text-align: center;
       margin: 8px 0 24px; direction: rtl;
     }
     .verse {
-      padding: 20px 0; border-bottom: 1px solid var(--line);
+      padding: 12px 0 20px; border-bottom: 1px solid var(--line);
     }
-    .verse.current .key { color: var(--accent); background: var(--accent-soft); }
+    .verse-bar { display: flex; align-items: center; gap: 2px; margin-right: -8px; }
     .key {
-      display: inline-block; font-size: 12px; font-weight: 600; color: var(--muted);
-      border-radius: 6px; padding: 2px 8px; font-variant-numeric: tabular-nums;
+      font-size: 14px; color: var(--muted); padding-right: 6px; font-variant-numeric: tabular-nums;
     }
+    .verse.current .key { color: var(--accent); font-weight: 600; }
+    .act {
+      display: inline-flex; align-items: center; justify-content: center; flex: none;
+      width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px;
+      background: none; color: var(--muted); cursor: pointer;
+    }
+    .act svg { width: 18px; height: 18px; }
+    .act.push { margin-left: auto; }
+    #settings-open { color: var(--accent); margin-right: -8px; }
+    .act.on { color: var(--accent); }
+    .act.on svg { fill: currentColor; }
+    .verse.playing .key, .verse.playing [data-act="play"] { color: var(--accent); }
+    .verse.playing [data-act="play"] svg, .player-bar .act.main svg { fill: currentColor; }
     .ar {
-      font-family: UthmanicHafs, serif; font-size: 30px; line-height: 2.1;
+      font-family: UthmanicHafs, serif; font-size: calc(var(--ar-base) + var(--ar-step, 0) * 3px); line-height: 2.1;
       direction: rtl; text-align: right; margin: 6px 0 10px;
     }
     .indopak .ar, .indopak .bismillah, .ar.indopak { font-family: IndoPak, serif; line-height: 2.4; }
@@ -140,10 +159,10 @@
     .seg span { display: block; text-align: center; padding: 7px 4px; border-radius: 7px; font-size: 14px; font-weight: 500; color: var(--muted); }
     .seg input:checked + span { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgb(0 0 0 / .15); }
     .seg input:focus-visible + span { outline: 2px solid var(--accent); }
-    .preview { margin: 6px 0 2px; font-size: 26px; direction: rtl; text-align: center; }
+    .preview { margin: 6px 0 2px; direction: rtl; text-align: center; }
     .card h3 + .seg { margin-top: 8px; }
     .card h3 { margin: 18px 0 0; font-size: 14px; font-weight: 500; color: var(--muted); }
-    .en { font-size: 16px; line-height: 1.65; color: var(--text); margin: 0; }
+    .en { font-size: calc(16px + var(--en-step, 0) * 2px); line-height: 1.5; color: var(--text); margin: 0; }
     .en sup { display: none; }
     .status { text-align: center; color: var(--muted); padding: 48px 0; }
     .next { display: flex; justify-content: center; padding: 32px 0; }
@@ -160,18 +179,61 @@
     dialog p strong { color: var(--text); font-weight: 600; }
     .actions { display: flex; gap: 8px; justify-content: flex-end; }
     .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
-    .icon-btn { width: 36px; padding: 0; flex: none; }
-    .icon-btn svg { width: 18px; height: 18px; }
-    #settings {
-      position: fixed; inset: 0; z-index: 20; overflow-y: auto;
-      background: var(--bg);
-      padding-top: env(safe-area-inset-top);
+    /* Settings and Go to slide up from the bottom, over the page you're reading. */
+    .scrim { position: fixed; inset: 0; z-index: 19; background: rgb(0 0 0 / .45); }
+    .sheet {
+      position: fixed; inset: auto 0 0 0; z-index: 20; display: flex; flex-direction: column;
+      max-width: 560px; margin: 0 auto; max-height: 92vh; max-height: 92dvh;
+      background: var(--bg); border-radius: 16px 16px 0 0;
+      animation: rise .2s ease-out;
     }
-    /* Stays at the top: an iPhone Home Screen app has no back gesture to leave Settings. */
-    #settings .bar { justify-content: space-between; border-bottom: 1px solid var(--line); max-width: none;
-      position: sticky; top: 0; z-index: 1; background: var(--bg); }
-    #settings .bar h1 { margin: 0; font-size: 17px; font-weight: 600; }
-    .settings-body { max-width: 560px; margin: 0 auto; padding: 24px 16px 48px; }
+    #goto { height: 85vh; height: 85dvh; }
+    @keyframes rise { from { transform: translateY(100%); } }
+    @media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+    .sheet > .bar { flex: none; width: 100%; justify-content: space-between; border-bottom: 1px solid var(--line); max-width: none; }
+    .sheet > .bar h1 { margin: 0; font-size: 17px; font-weight: 600; }
+    .sheet-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: env(safe-area-inset-bottom); }
+    /* Go to */
+    .goto-head { flex: none; padding: 12px 16px; display: grid; gap: 10px; }
+    .goto-head .seg { margin: 0; }
+    .goto-head input {
+      width: 100%; font: inherit; font-size: 16px; color: var(--text);
+      background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px;
+    }
+    .goto-lists { flex: 1; min-height: 0; display: flex; border-top: 1px solid var(--line); }
+    .goto-lists > .sheet-scroll:last-child { flex: none; width: 76px; border-left: 1px solid var(--line); }
+    .goto-list { list-style: none; margin: 0; padding: 0 0 8px; }
+    .goto-list button {
+      display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 16px;
+      font: inherit; font-size: 15px; color: var(--text); text-align: left; background: none; border: 0; cursor: pointer;
+    }
+    .goto-list button.on { color: var(--accent); font-weight: 600; background: var(--accent-soft); }
+    .goto-list .num { min-width: 24px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .goto-list .on .num { color: inherit; }
+    #goto-verses button { justify-content: center; padding: 8px 4px; font-variant-numeric: tabular-nums; }
+    .goto-list .ar-name { margin-left: auto; font-size: 17px; }
+    .goto-list small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+    .goto-empty { padding: 24px 16px; text-align: center; font-size: 14px; color: var(--muted); }
+    /* Settings: reading */
+    .pick { display: grid; gap: 6px; margin-top: 18px; font-size: 14px; font-weight: 500; color: var(--muted); }
+    .pick select { width: 100%; min-height: 40px; font-size: 15px; font-weight: 400; background: var(--bg); }
+    .size-row { margin-top: 18px; font-size: 14px; font-weight: 500; color: var(--muted); }
+    .stepper { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+    .stepper button { width: 44px; height: 36px; padding: 0; font: inherit; font-size: 20px; line-height: 1; color: var(--text); background: none; border: 0; cursor: pointer; }
+    .stepper button:disabled { opacity: .35; cursor: default; }
+    .stepper output { min-width: 24px; text-align: center; color: var(--text); font-variant-numeric: tabular-nums; }
+    /* Audio player */
+    .player {
+      position: fixed; inset: auto 0 0 0; z-index: 15; background: var(--surface); border-top: 1px solid var(--line);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .player-bar { display: flex; align-items: center; gap: 2px; max-width: 760px; height: 60px; margin: 0 auto; padding: 0 8px; }
+    .player-bar .act { width: 44px; height: 44px; color: var(--text); }
+    .player-bar .act.main { color: var(--accent); }
+    .player-info { flex: 1; min-width: 0; padding: 0 8px; font-size: 14px; font-weight: 500; }
+    .player-info small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 400; color: var(--muted); }
+    body.listening .toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
+    .settings-body { padding: 16px 16px 32px; }
     .card {
       background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
       padding: 16px; margin-bottom: 16px;
@@ -222,29 +284,92 @@
     .msg { margin: 12px 0 0; font-size: 14px; color: #c2553f; }
     .msg:empty { display: none; }
     @media (max-width: 420px) {
-      .ar { font-size: 26px; }
-      .hide-sm { display: none; }
+      :root { --ar-base: 26px; }
     }
   </style>
 </head>
 <body>
+  <svg hidden aria-hidden="true">
+    <symbol id="i-down" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></symbol>
+    <symbol id="i-open" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+  </svg>
   <header>
     <div class="bar">
-      <select id="surah" aria-label="Surah"></select>
+      <button class="surah-btn" id="goto-open" aria-label="Go to a surah or verse"><span id="surah-name">Quran</span><svg class="i" aria-hidden="true"><use href="#i-down"/></svg></button>
       <span class="pos" id="pos">–</span>
-      <a class="btn" id="open" target="_blank" rel="noopener" title="Open this verse on quran.com">quran.com<span class="hide-sm">&nbsp;↗</span></a>
-      <button class="btn icon-btn" id="settings-open" aria-label="Settings">
+      <button class="act" id="settings-open" aria-label="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
     </div>
   </header>
 
-  <section id="settings" hidden aria-labelledby="settings-title">
+  <div class="scrim" id="scrim" hidden></div>
+
+  <section id="goto" class="sheet" role="dialog" aria-modal="true" aria-labelledby="goto-title" hidden>
+    <div class="bar">
+      <h1 id="goto-title">Go to</h1>
+      <button class="btn" id="goto-close">Done</button>
+    </div>
+    <div class="goto-head">
+      <div class="seg" role="radiogroup" aria-label="Show">
+        <label><input type="radio" name="goto-tab" value="surah" checked><span>Surah</span></label>
+        <label><input type="radio" name="goto-tab" value="saved"><span>Saved</span></label>
+      </div>
+      <input id="goto-search" type="search" placeholder="Search, or type 18:10" enterkeyhint="go" autocomplete="off" aria-label="Search for a surah, or type a verse like 18:10">
+    </div>
+    <div class="goto-lists" id="goto-browse">
+      <div class="sheet-scroll" style="flex:1"><ul class="goto-list" id="goto-surahs"></ul></div>
+      <div class="sheet-scroll" id="goto-verses-wrap"><ul class="goto-list" id="goto-verses" aria-label="Verses in this surah"></ul></div>
+    </div>
+    <div class="sheet-scroll" id="goto-saved-wrap" hidden><ul class="goto-list" id="goto-saved"></ul></div>
+  </section>
+
+  <section id="settings" class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
     <div class="bar">
       <h1 id="settings-title">Settings</h1>
       <button class="btn" id="settings-close">Done</button>
     </div>
-    <div class="settings-body">
+    <div class="settings-body sheet-scroll">
+      <div class="card">
+        <h2>Reading</h2>
+        <h3>Arabic script</h3>
+        <p class="ar preview" id="script-preview"></p>
+        <div class="seg" role="radiogroup" aria-label="Arabic script">
+          <label><input type="radio" name="script" value="uthmani"><span>Uthmani</span></label>
+          <label><input type="radio" name="script" value="indopak"><span>IndoPak</span></label>
+          <label><input type="radio" name="script" value="tajweed"><span>Tajweed</span></label>
+        </div>
+        <div class="row size-row">Arabic size
+          <div class="stepper">
+            <button data-size="ar" data-by="-1" aria-label="Smaller Arabic">−</button>
+            <output id="size-ar"></output>
+            <button data-size="ar" data-by="1" aria-label="Larger Arabic">+</button>
+          </div>
+        </div>
+        <div class="row size-row">Translation size
+          <div class="stepper">
+            <button data-size="en" data-by="-1" aria-label="Smaller translation">−</button>
+            <output id="size-en"></output>
+            <button data-size="en" data-by="1" aria-label="Larger translation">+</button>
+          </div>
+        </div>
+        <label class="pick">Translation <select id="translation"></select></label>
+        <label class="pick">Reciter <select id="reciter"></select></label>
+        <h3>Theme</h3>
+        <div class="seg" role="radiogroup" aria-label="Theme">
+          <label><input type="radio" name="theme" value="system"><span>Auto</span></label>
+          <label><input type="radio" name="theme" value="light"><span>Light</span></label>
+          <label><input type="radio" name="theme" value="dark"><span>Dark</span></label>
+        </div>
+      </div>
       <div class="card">
         <div class="row">
           <h2>Daily reminders</h2>
@@ -263,22 +388,6 @@
         <p class="msg" id="rem-msg"></p>
       </div>
       <div class="card">
-        <h2>Reading</h2>
-        <h3>Arabic script</h3>
-        <p class="ar preview" id="script-preview"></p>
-        <div class="seg" role="radiogroup" aria-label="Arabic script">
-          <label><input type="radio" name="script" value="uthmani"><span>Uthmani</span></label>
-          <label><input type="radio" name="script" value="indopak"><span>IndoPak</span></label>
-          <label><input type="radio" name="script" value="tajweed"><span>Tajweed</span></label>
-        </div>
-        <h3>Theme</h3>
-        <div class="seg" role="radiogroup" aria-label="Theme">
-          <label><input type="radio" name="theme" value="system"><span>Auto</span></label>
-          <label><input type="radio" name="theme" value="light"><span>Light</span></label>
-          <label><input type="radio" name="theme" value="dark"><span>Dark</span></label>
-        </div>
-      </div>
-      <div class="card">
         <h2>Your computer</h2>
         <div id="link-off">
           <p class="hint">Sync your place with the Quran Resume extension on your computer. Scan its QR code, or enter its code here.</p>
@@ -293,12 +402,22 @@
         </div>
         <p class="msg" id="link-msg"></p>
       </div>
-      <p class="credit">Text and Saheeh International translation from <a href="https://quran.foundation" target="_blank" rel="noopener">Quran Foundation</a>.
+      <p class="credit">Text, translations and recitations from <a href="https://quran.foundation" target="_blank" rel="noopener">Quran Foundation</a>.
         Fonts: KFGQPC Uthmanic Hafs and the Tajweed Mushaf by the King Fahd Complex, and IndoPak Nastaleeq by <a href="https://quranwbw.com" target="_blank" rel="noopener">QuranWBW</a>.</p>
     </div>
   </section>
   <main id="main"><div class="status">Loading…</div></main>
   <div class="toast" id="toast" role="status" hidden></div>
+
+  <div class="player" id="player" hidden>
+    <div class="player-bar">
+      <button class="act" id="player-prev" aria-label="Previous verse"><svg class="i" aria-hidden="true"><use href="#i-prev"/></svg></button>
+      <button class="act main" id="player-toggle" aria-label="Pause"><svg class="i" aria-hidden="true"><use id="player-icon" href="#i-pause"/></svg></button>
+      <button class="act" id="player-next" aria-label="Next verse"><svg class="i" aria-hidden="true"><use href="#i-next"/></svg></button>
+      <div class="player-info"><span id="player-key"></span><small id="player-name"></small></div>
+      <button class="act" id="player-close" aria-label="Stop"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+  </div>
 
   <dialog id="install" aria-labelledby="install-title">
     <h2 id="install-title">Add to your home screen</h2>
@@ -331,21 +450,25 @@
 
 <script>
 const API = 'https://api.quran.com/api/v4';
-const TRANSLATION = 20; // Saheeh International
 // Attribution required by the Quran Foundation Developer Terms.
-const CREDIT = `<p class="credit">Translation: Saheeh International<br>
+const creditHTML = () => `<p class="credit">Translation: ${escapeHTML(translation.name)}<br>
   Quran text and translation via <a href="https://quran.foundation" target="_blank" rel="noopener">Quran Foundation</a> (quran.com)</p>`;
 const KEY = 'quran-bookmark';
 const DEFAULT = { chapter: 2, verse: 86 };
 
 const $main = document.getElementById('main');
-const $surah = document.getElementById('surah');
+const $surahName = document.getElementById('surah-name');
 const $pos = document.getElementById('pos');
-const $open = document.getElementById('open');
+let $openSheet = null; // the slide-up panel showing, if any
 
 let chapters = [];
 let current = { chapter: 0, verse: 0 };
 let restoring = false;
+let loadedVerses = []; // the surah on screen
+
+// Our sheets add a history entry so the back button closes them; the page handles
+// its own scrolling, so going back must not restore an old position.
+history.scrollRestoration = 'manual';
 
 // The saved place is { chapter, verse, savedAt }. savedAt changes only when the
 // reader moves, never when the app reopens at a saved place, so when syncing
@@ -383,14 +506,18 @@ function saveBookmark(force = false) {
   try { localStorage.setItem(KEY, JSON.stringify({ ...current, savedAt })); } catch {}
 }
 
+// The address always shows the current verse (a reload opens there).
+function syncAddress() {
+  if (current.chapter) history.replaceState(history.state, '', `?chapter=${current.chapter}&verse=${current.verse}${carryPair()}`);
+}
+
 function setCurrent(chapter, verse, moved = false) {
   if (current.chapter === chapter && current.verse === verse) return;
   document.querySelector('.verse.current')?.classList.remove('current');
   document.getElementById(`v${verse}`)?.classList.add('current');
   current = { chapter, verse };
   $pos.textContent = `${chapter}:${verse}`;
-  $open.href = `https://quran.com/${chapter}?startingVerse=${verse}`;
-  history.replaceState(history.state, '', `?chapter=${chapter}&verse=${verse}${carryPair()}`);
+  syncAddress();
   if (moved) {
     savedAt = Date.now();
     schedulePush();
@@ -450,7 +577,7 @@ function schedulePush() {
 
 let lastPull = 0;
 function pullSoon(minGap) {
-  if (Date.now() - lastPull < minGap || !$settings.hidden) return;
+  if (Date.now() - lastPull < minGap || $openSheet) return;
   lastPull = Date.now();
   pullPlace();
 }
@@ -550,6 +677,13 @@ const pref = (key, fallback, allowed) => {
 };
 let script = pref('quran-script', 'uthmani', Object.keys(SCRIPTS));
 
+// Chosen translation and reciter, kept with their names for the credit and the player.
+const prefChoice = (key, fallback) => {
+  try { const v = JSON.parse(localStorage.getItem(key)); return Number.isInteger(v?.id) && typeof v.name === 'string' ? v : fallback; } catch { return fallback; }
+};
+let translation = prefChoice('quran-translation', { id: 20, name: 'Saheeh International' });
+let reciter = prefChoice('quran-reciter', { id: 7, name: 'Mishari Rashid al-‘Afasy' });
+
 // The page fonts come in colour formats: COLRv1 for Chrome, and SVG (one set for
 // light, one for dark) for Safari, which doesn't draw COLRv1. They're served
 // through this app's server, which caches them.
@@ -620,8 +754,9 @@ function arabicHTML(source) {
 const arabicOf = v => (SCRIPTS[script].words ? v.words : v[SCRIPTS[script].field]);
 
 async function fetchChapterVerses(id) {
-  const text = SCRIPTS[script].words ? 'words=true&word_fields=code_v2,v2_page' : `fields=${SCRIPTS[script].field}`;
-  const url = p => `${API}/verses/by_chapter/${id}?per_page=50&page=${p}&${text}&translations=${TRANSLATION}`;
+  // text_uthmani is what Copy gives you: real text, whichever script is on screen.
+  const text = SCRIPTS[script].words ? 'words=true&word_fields=code_v2,v2_page&fields=text_uthmani' : `fields=${SCRIPTS[script].field},text_uthmani`;
+  const url = p => `${API}/verses/by_chapter/${id}?per_page=50&page=${p}&${text}&translations=${translation.id}`;
   const first = await getJSON(url(1));
   const rest = await Promise.all(
     Array.from({ length: first.pagination.total_pages - 1 }, (_, i) => getJSON(url(i + 2)))
@@ -638,9 +773,35 @@ function plainTranslation(html) {
   return html.replace(/<sup[^>]*>.*?<\/sup>/g, '').replace(/<[^>]+>/g, '');
 }
 
+const icon = name => `<svg class="i" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+
+function verseHTML(v, id) {
+  const key = escapeHTML(String(v.verse_key));
+  const saved = savedVerses.includes(`${id}:${v.verse_number}`);
+  return `
+    <article class="verse" id="v${v.verse_number}" data-verse="${v.verse_number}">
+      <div class="verse-bar">
+        <span class="key">${key}</span>
+        <button class="act" data-act="play" aria-label="Play ${key}">${icon('play')}</button>
+        <button class="act${saved ? ' on' : ''}" data-act="save" aria-label="Save ${key}" aria-pressed="${saved}">${icon('save')}</button>
+        <button class="act push" data-act="copy" aria-label="Copy ${key}">${icon('copy')}</button>
+        <button class="act" data-act="share" aria-label="Share ${key}">${icon('share')}</button>
+        <a class="act" data-act="open" href="https://quran.com/${id}?startingVerse=${v.verse_number}" target="_blank" rel="noopener" aria-label="Open ${key} on quran.com">${icon('open')}</a>
+      </div>
+      <p class="ar${SCRIPTS[script].words ? ' qpc' : ''}">${arabicHTML(arabicOf(v))}</p>
+      <p class="en" dir="auto">${escapeHTML(plainTranslation(v.translations?.[0]?.text || ''))}</p>
+    </article>`;
+}
+
+function showSurahName(id) {
+  const name = chapters.find(c => c.id === id)?.name_simple;
+  $surahName.textContent = name ? `${id}. ${name}` : `Surah ${id}`;
+}
+
 async function openChapter(id, verse, moved = false) {
   restoring = true;
-  $surah.value = id;
+  if (player.chapter && player.chapter !== id) stopPlayer();
+  showSurahName(id);
   $main.innerHTML = '<div class="status">Loading…</div>';
   let verses;
   try {
@@ -657,13 +818,10 @@ async function openChapter(id, verse, moved = false) {
   const next = id < 114
     ? `<div class="next"><button class="btn" data-next="${id + 1}">Next: ${escapeHTML(chapters[id]?.name_simple || 'Surah ' + (id + 1))} →</button></div>` : '';
 
+  loadedVerses = verses;
   $main.classList.toggle('indopak', script === 'indopak');
-  $main.innerHTML = bismillah + verses.map(v => `
-    <article class="verse" id="v${v.verse_number}" data-verse="${v.verse_number}">
-      <span class="key">${escapeHTML(String(v.verse_key))}</span>
-      <p class="ar${SCRIPTS[script].words ? ' qpc' : ''}">${arabicHTML(arabicOf(v))}</p>
-      <p class="en">${escapeHTML(plainTranslation(v.translations?.[0]?.text || ''))}</p>
-    </article>`).join('') + next + CREDIT;
+  $main.innerHTML = bismillah + verses.map(v => verseHTML(v, id)).join('') + next + creditHTML();
+  renderPlayer();
 
   current = { chapter: 0, verse: 0 };
   const target = Math.min(Math.max(verse, 1), verses.length);
@@ -694,14 +852,15 @@ function anchorTo(verse) {
 
 // Keeps a verse pinned under the header while layout settles (late font swaps,
 // images, iOS toolbar resizing), so a shift can't move the saved verse.
-let settleTimer;
+let settleTimer, settleObserver;
 function holdAnchor(verse, ms = 1500) {
   restoring = true;
-  const observer = new ResizeObserver(() => anchorTo(verse));
-  observer.observe($main);
+  settleObserver?.disconnect(); // one still settling must not pull back to its old verse
+  settleObserver = new ResizeObserver(() => anchorTo(verse));
+  settleObserver.observe($main);
   clearTimeout(settleTimer);
   settleTimer = setTimeout(() => {
-    observer.disconnect();
+    settleObserver.disconnect();
     anchorTo(verse);
     restoring = false;
   }, ms);
@@ -709,7 +868,7 @@ function holdAnchor(verse, ms = 1500) {
 
 // The "current" verse is whichever one sits just under the fixed header.
 function detectVerse() {
-  if (restoring || !current.chapter) return;
+  if (restoring || !current.chapter || $openSheet) return;
   const headerBottom = document.querySelector('header').getBoundingClientRect().bottom;
   const el = document.elementFromPoint(window.innerWidth / 2, headerBottom + 24)?.closest('.verse');
   if (el) setCurrent(current.chapter, +el.dataset.verse, true);
@@ -745,16 +904,321 @@ document.addEventListener('visibilitychange', () => {
 });
 
 const $leave = document.getElementById('leave');
-$open.addEventListener('click', e => {
-  if (typeof $leave.showModal !== 'function') return; // old browsers just follow the link
-  e.preventDefault();
-  document.getElementById('leave-pos').textContent = $pos.textContent;
-  document.getElementById('leave-go').href = $open.href;
-  $leave.showModal();
-});
 document.getElementById('leave-stay').addEventListener('click', () => $leave.close());
 document.getElementById('leave-go').addEventListener('click', () => $leave.close());
 $leave.addEventListener('click', e => { if (e.target === $leave) $leave.close(); });
+
+// ---- verse actions: save, copy, share ----
+
+const SAVED_KEY = 'quran-saved-verses';
+let savedVerses = (() => {
+  try { const v = JSON.parse(localStorage.getItem(SAVED_KEY)); return Array.isArray(v) ? v.filter(k => /^\d{1,3}:\d{1,3}$/.test(k)) : []; } catch { return []; }
+})();
+
+function toggleSaved($btn, key) {
+  const on = !savedVerses.includes(key);
+  savedVerses = on ? [key, ...savedVerses] : savedVerses.filter(k => k !== key);
+  try { localStorage.setItem(SAVED_KEY, JSON.stringify(savedVerses)); } catch {}
+  $btn.classList.toggle('on', on);
+  $btn.setAttribute('aria-pressed', String(on));
+  showToast(on ? `Saved ${key}` : `Removed ${key}`);
+}
+
+async function copyVerse(v) {
+  const text = `${v.text_uthmani || ''}\n\n${plainTranslation(v.translations?.[0]?.text || '')}\n\nQuran ${v.verse_key}`;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(`Copied ${v.verse_key}`);
+  } catch {
+    showToast('Couldn’t copy this verse.');
+  }
+}
+
+async function shareVerse(v) {
+  const url = `https://quran.com/${String(v.verse_key).replace(':', '/')}`;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: `Quran ${v.verse_key}`, text: `${plainTranslation(v.translations?.[0]?.text || '')}\n\nQuran ${v.verse_key}`, url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      showToast('Link copied');
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') showToast('Couldn’t share this verse.'); // AbortError: you closed the share sheet
+  }
+}
+
+$main.addEventListener('click', e => {
+  const $act = e.target.closest('[data-act]');
+  const $verse = $act?.closest('.verse');
+  if (!$verse) return;
+  const n = +$verse.dataset.verse;
+  const v = loadedVerses.find(x => x.verse_number === n);
+  const key = `${current.chapter}:${n}`;
+  if ($act.dataset.act === 'play') {
+    if (player.chapter === current.chapter && player.verse === n) togglePlayer();
+    else playVerse(current.chapter, n);
+  } else if ($act.dataset.act === 'save') toggleSaved($act, key);
+  else if ($act.dataset.act === 'copy' && v) copyVerse(v);
+  else if ($act.dataset.act === 'share' && v) shareVerse(v);
+  else if ($act.dataset.act === 'open' && typeof $leave.showModal === 'function') { // old browsers just follow the link
+    e.preventDefault();
+    document.getElementById('leave-pos').textContent = $pos.textContent;
+    document.getElementById('leave-go').href = $act.href;
+    $leave.showModal();
+  }
+});
+
+// ---- audio: plays verse by verse, following along as it goes ----
+// The files come straight from the Quran Foundation's audio hosts, not this app's server.
+
+const audio = new Audio();
+const player = { chapter: 0, verse: 0, loading: false, run: 0 };
+const audioLists = new Map(); // "reciter:surah" -> promise of Map(verse -> url)
+const $player = document.getElementById('player');
+// A phone only lets sound start from a tap, and the file address arrives after the
+// tap. Playing this tiny silent clip during the tap unlocks the audio for later.
+const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+let audioUnlocked = false;
+
+function audioUrls(chapter) {
+  const key = `${reciter.id}:${chapter}`;
+  if (!audioLists.has(key)) {
+    const list = getJSON(`${API}/recitations/${reciter.id}/by_chapter/${chapter}?per_page=300`).then(out => new Map(out.audio_files.map(f => [
+      +String(f.verse_key).split(':')[1],
+      f.url.startsWith('//') ? `https:${f.url}` : /^https?:/.test(f.url) ? f.url : `https://verses.quran.com/${f.url}`,
+    ])));
+    list.catch(() => audioLists.delete(key)); // try again next time
+    audioLists.set(key, list);
+  }
+  return audioLists.get(key);
+}
+
+const verseCount = chapter => chapters.find(c => c.id === chapter)?.verses_count || (chapter === current.chapter ? loadedVerses.length : 0);
+
+async function playVerse(chapter, verse, follow = false) {
+  const run = ++player.run;
+  if (!audioUnlocked) {
+    audioUnlocked = true;
+    audio.src = SILENCE;
+    audio.play().catch(() => {});
+  }
+  Object.assign(player, { chapter, verse, loading: true });
+  renderPlayer();
+  if (follow) followVerse(chapter, verse);
+  let url;
+  try { url = (await audioUrls(chapter)).get(verse); } catch {}
+  if (run !== player.run) return;
+  if (!url) {
+    stopPlayer();
+    showToast('Couldn’t load the audio. Check your connection.');
+    return;
+  }
+  audio.src = url;
+  try {
+    await audio.play();
+  } catch {} // interrupted by the next verse, or blocked: the player shows paused
+  if (run !== player.run) return;
+  player.loading = false;
+  renderPlayer();
+  updateMediaSession();
+}
+
+// Keeps the verse being recited at the top. This moves your place too, like scrolling.
+function followVerse(chapter, verse) {
+  const el = document.getElementById(`v${verse}`);
+  if (!el || chapter !== current.chapter || restoring || $openSheet) return;
+  const headerBottom = document.querySelector('header').getBoundingClientRect().bottom;
+  scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + scrollY - headerBottom - 12), behavior: 'smooth' });
+}
+
+function stepPlayer(by) {
+  const verse = player.verse + by;
+  if (verse < 1 || verse > verseCount(player.chapter)) return stopPlayer();
+  playVerse(player.chapter, verse, true);
+}
+
+function togglePlayer() {
+  if (audio.paused) audio.play().catch(() => {});
+  else audio.pause();
+}
+
+function stopPlayer() {
+  player.run++;
+  Object.assign(player, { chapter: 0, verse: 0, loading: false });
+  audio.pause();
+  audio.removeAttribute('src');
+  audio.load();
+  renderPlayer();
+}
+
+function renderPlayer() {
+  const on = !!player.chapter;
+  $player.hidden = !on;
+  document.body.classList.toggle('listening', on);
+  document.querySelectorAll('.verse.playing').forEach(el => {
+    el.classList.remove('playing');
+    el.querySelector('[data-act="play"] use').setAttribute('href', '#i-play');
+  });
+  if (!on) return;
+  const playing = player.loading || !audio.paused;
+  document.getElementById('player-icon').setAttribute('href', playing ? '#i-pause' : '#i-play');
+  document.getElementById('player-toggle').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  document.getElementById('player-key').textContent = `${player.chapter}:${player.verse}`;
+  document.getElementById('player-name').textContent = reciter.name;
+  if (player.chapter !== current.chapter && current.chapter) return;
+  const el = document.getElementById(`v${player.verse}`);
+  if (el) {
+    el.classList.add('playing');
+    el.querySelector('[data-act="play"] use').setAttribute('href', playing ? '#i-pause' : '#i-play');
+  }
+}
+
+// The lock screen and notification controls, while the phone is locked.
+function updateMediaSession() {
+  if (!('mediaSession' in navigator) || !player.chapter) return;
+  const name = chapters.find(c => c.id === player.chapter)?.name_simple || 'Surah';
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: `${name} ${player.chapter}:${player.verse}`, artist: reciter.name, album: 'Quran Resume',
+    artwork: [{ src: 'icon-512.png', sizes: '512x512', type: 'image/png' }],
+  });
+}
+if ('mediaSession' in navigator) {
+  navigator.mediaSession.setActionHandler('play', togglePlayer);
+  navigator.mediaSession.setActionHandler('pause', togglePlayer);
+  navigator.mediaSession.setActionHandler('previoustrack', () => stepPlayer(-1));
+  navigator.mediaSession.setActionHandler('nexttrack', () => stepPlayer(1));
+}
+
+const isRealAudio = () => player.chapter && !audio.src.startsWith('data:');
+audio.addEventListener('ended', () => { if (isRealAudio()) stepPlayer(1); });
+audio.addEventListener('error', () => {
+  if (!isRealAudio() || !audio.getAttribute('src')) return;
+  stopPlayer();
+  showToast('Couldn’t play this verse. Check your connection.');
+});
+audio.addEventListener('play', renderPlayer);
+audio.addEventListener('pause', renderPlayer);
+document.getElementById('player-toggle').addEventListener('click', togglePlayer);
+document.getElementById('player-prev').addEventListener('click', () => { if (player.verse > 1) stepPlayer(-1); });
+document.getElementById('player-next').addEventListener('click', () => stepPlayer(1));
+document.getElementById('player-close').addEventListener('click', stopPlayer);
+
+// ---- slide-up panels: Settings and Go to ----
+// Each gets its own history entry, so the phone's back button closes it instead
+// of leaving the app.
+
+const $scrim = document.getElementById('scrim');
+
+function showSheet($sheet) {
+  $openSheet = $sheet;
+  $sheet.hidden = $scrim.hidden = false;
+  document.body.style.overflow = 'hidden';
+  history.pushState({ sheet: true }, '');
+}
+function hideSheet() {
+  if (!$openSheet) return;
+  $openSheet.hidden = $scrim.hidden = true;
+  $openSheet = null;
+  document.body.style.overflow = '';
+}
+function closeSheet() {
+  if (history.state?.sheet) history.back(); // popstate below hides it
+  else hideSheet();
+}
+addEventListener('popstate', () => {
+  hideSheet();
+  syncAddress(); // the entry we're back on may hold an older verse
+});
+$scrim.addEventListener('click', closeSheet);
+addEventListener('keydown', e => { if (e.key === 'Escape' && $openSheet && !document.querySelector('dialog[open]')) closeSheet(); });
+
+// ---- Go to: surah list, verses of this surah, saved verses ----
+
+const $goSearch = document.getElementById('goto-search');
+const $goSurahs = document.getElementById('goto-surahs');
+const $goVerses = document.getElementById('goto-verses');
+const $goSaved = document.getElementById('goto-saved');
+
+async function loadChapters() {
+  if (chapters.length) return;
+  try { chapters = (await getJSON(`${API}/chapters?language=en`)).chapters; } catch {}
+}
+
+const squash = s => String(s).toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+
+function renderSurahs() {
+  const raw = $goSearch.value.trim();
+  const q = squash(raw);
+  const list = chapters.filter(c => !q || String(c.id) === q || squash(c.name_simple).includes(q)
+    || squash(c.translated_name?.name || '').includes(q) || squash(c.name_arabic).includes(q));
+  const m = /^(\d{1,3})\s*[:.\s]\s*(\d{1,3})$/.exec(raw);
+  const target = m && chapters.find(c => c.id === +m[1] && +m[2] >= 1 && +m[2] <= c.verses_count);
+  const jump = target ? `<li><button data-go="${target.id}:${+m[2]}"><span>Go to ${target.id}:${+m[2]}<small>${escapeHTML(target.name_simple)}</small></span></button></li>` : '';
+  const rows = target ? [] : list;
+  $goSurahs.innerHTML = jump + rows.map(c => `<li><button data-go="${+c.id}:1" class="${c.id === current.chapter ? 'on' : ''}">
+    <span class="num">${+c.id}</span>
+    <span>${escapeHTML(c.name_simple)}<small>${escapeHTML(c.translated_name?.name || '')}</small></span>
+    <span class="ar-name" dir="rtl">${escapeHTML(c.name_arabic)}</span></button></li>`).join('')
+    || `<li class="goto-empty">${chapters.length ? 'No surah found.' : 'Couldn’t load the list. Check your connection.'}</li>`;
+}
+
+function renderVerses() {
+  const count = verseCount(current.chapter);
+  $goVerses.innerHTML = Array.from({ length: count }, (_, i) =>
+    `<li><button data-go="${current.chapter}:${i + 1}" class="${i + 1 === current.verse ? 'on' : ''}" aria-label="Verse ${i + 1}">${i + 1}</button></li>`).join('');
+}
+
+function renderSaved() {
+  $goSaved.innerHTML = savedVerses.map(key => {
+    const [c, v] = key.split(':').map(Number);
+    const name = chapters.find(x => x.id === c)?.name_simple || `Surah ${c}`;
+    return `<li><button data-go="${c}:${v}"><span class="num">${c}:${v}</span><span>${escapeHTML(name)}</span></button></li>`;
+  }).join('') || '<li class="goto-empty">Tap the bookmark on a verse to save it here.</li>';
+}
+
+function centerIn($wrap) {
+  const el = $wrap.querySelector('.on');
+  if (el) $wrap.scrollTop += el.getBoundingClientRect().top - $wrap.getBoundingClientRect().top - $wrap.clientHeight / 2;
+}
+
+function showGotoTab(tab) {
+  document.querySelector(`input[name="goto-tab"][value="${tab}"]`).checked = true;
+  document.getElementById('goto-browse').hidden = tab !== 'surah';
+  document.getElementById('goto-saved-wrap').hidden = tab !== 'saved';
+  $goSearch.hidden = tab !== 'surah';
+  if (tab === 'saved') renderSaved();
+}
+
+function goTo(chapter, verse) {
+  closeSheet();
+  if (chapter !== current.chapter) return openChapter(chapter, verse, true);
+  if (SCRIPTS[script].words) loadTajweedFonts(loadedVerses, verse - 1);
+  anchorTo(verse);
+  setCurrent(chapter, verse, true);
+  holdAnchor(verse);
+}
+
+document.getElementById('goto-open').addEventListener('click', async () => {
+  $goSearch.value = '';
+  showGotoTab('surah');
+  showSheet(document.getElementById('goto'));
+  await loadChapters();
+  renderSurahs();
+  renderVerses();
+  centerIn($goSurahs.parentElement);
+  centerIn($goVerses.parentElement);
+});
+document.getElementById('goto-close').addEventListener('click', closeSheet);
+document.querySelectorAll('input[name="goto-tab"]').forEach(input => input.addEventListener('change', () => showGotoTab(input.value)));
+$goSearch.addEventListener('input', renderSurahs);
+$goSearch.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $goSurahs.querySelector('[data-go]')?.click(); }
+});
+document.getElementById('goto').addEventListener('click', e => {
+  const go = e.target.closest('[data-go]')?.dataset.go;
+  if (go) goTo(...go.split(':').map(Number));
+});
 
 // ---- settings: daily reminders ----
 // Scheduling and the "skip once acknowledged" rule live in src/worker.js; this page
@@ -978,7 +1442,7 @@ document.getElementById('link-form').addEventListener('submit', async e => {
     } else {
       syncPlace(true);
     }
-    closeSettings();
+    closeSheet();
     showToast('Linked to your computer');
   } catch (err) {
     $linkMsg.textContent = err.message;
@@ -991,15 +1455,13 @@ document.getElementById('link-forget').addEventListener('click', () => {
   renderLink();
 });
 
-function setSettingsOpen(open) {
-  $settings.hidden = !open;
-  document.body.style.overflow = open ? 'hidden' : '';
-  if (open) {
-    renderReading();
-    refreshReminders();
-    renderLink();
-    $linkMsg.textContent = '';
-  }
+function openSettings() {
+  showSheet($settings);
+  renderReading();
+  refreshReminders();
+  renderLink();
+  $linkMsg.textContent = '';
+  loadPickers();
 }
 function renderReading() {
   document.querySelector(`input[name="script"][value="${script}"]`).checked = true;
@@ -1009,7 +1471,89 @@ function renderReading() {
   $preview.classList.toggle('qpc', !!SCRIPTS[script].words);
   $preview.innerHTML = arabicHTML(SCRIPTS[script].sample);
   if (SCRIPTS[script].words) { loadPage(1); showLoadedPages(); }
+  renderSizes();
+  fillSelect('translation', translation, []);
+  fillSelect('reciter', reciter, []);
 }
+
+// Text sizes, as steps from the usual size; the style sets the actual sizes.
+const SIZES = { ar: { key: 'quran-ar-size', usual: 4 }, en: { key: 'quran-en-size', usual: 3 } };
+const sizeLevel = which => {
+  const n = Math.round(+pref(SIZES[which].key, String(SIZES[which].usual), ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']));
+  return n;
+};
+function renderSizes() {
+  for (const which of Object.keys(SIZES)) {
+    const level = sizeLevel(which);
+    document.getElementById(`size-${which}`).textContent = level;
+    document.querySelector(`[data-size="${which}"][data-by="-1"]`).disabled = level <= 1;
+    document.querySelector(`[data-size="${which}"][data-by="1"]`).disabled = level >= 10;
+  }
+}
+document.querySelectorAll('[data-size]').forEach($btn => $btn.addEventListener('click', () => {
+  const which = $btn.dataset.size;
+  const level = Math.min(10, Math.max(1, sizeLevel(which) + +$btn.dataset.by));
+  try { localStorage.setItem(SIZES[which].key, level); } catch {}
+  document.documentElement.style.setProperty(`--${which}-step`, level - SIZES[which].usual);
+  renderSizes();
+  if (current.chapter) { // new line lengths: stay on the same verse
+    anchorTo(current.verse);
+    holdAnchor(current.verse, 300);
+  }
+}));
+
+// Translation and reciter lists, fetched the first time Settings opens.
+function fillSelect(id, chosen, groups) {
+  const $select = document.getElementById(id);
+  if (!groups.length && $select.options.length > 1) { $select.value = chosen.id; return; }
+  $select.innerHTML = '';
+  for (const [label, items] of groups) {
+    const parent = label ? $select.appendChild(Object.assign(document.createElement('optgroup'), { label })) : $select;
+    for (const item of items) parent.append(new Option(item.name, item.id));
+  }
+  if (!groups.some(([, items]) => items.some(i => i.id === chosen.id))) $select.prepend(new Option(chosen.name, chosen.id));
+  $select.value = chosen.id;
+}
+
+let pickersLoaded = false;
+async function loadPickers() {
+  if (pickersLoaded) return;
+  try {
+    const [{ translations }, { recitations }] = await Promise.all([
+      getJSON(`${API}/resources/translations`), getJSON(`${API}/resources/recitations`),
+    ]);
+    const language = t => { const l = t.language_name.split(',')[0]; return l[0].toUpperCase() + l.slice(1).toLowerCase(); };
+    const byLanguage = new Map();
+    for (const t of translations) {
+      const l = language(t);
+      if (!byLanguage.has(l)) byLanguage.set(l, []);
+      byLanguage.get(l).push({ id: t.id, name: t.translated_name?.name || t.name });
+    }
+    const groups = [...byLanguage].sort(([a], [b]) => (b === 'English') - (a === 'English') || a.localeCompare(b));
+    fillSelect('translation', translation, groups);
+    fillSelect('reciter', reciter, [['', recitations.map(r => ({
+      id: r.id, name: `${r.reciter_name.replace(/`/g, '‘')}${r.style ? ` (${r.style})` : ''}`,
+    }))]]);
+    pickersLoaded = true;
+  } catch {} // offline: the current choices stay; tried again next time
+}
+function chooseFrom(id, key, apply) {
+  const $select = document.getElementById(id);
+  $select.addEventListener('change', () => {
+    const choice = { id: +$select.value, name: $select.selectedOptions[0].textContent };
+    try { localStorage.setItem(key, JSON.stringify(choice)); } catch {}
+    apply(choice);
+  });
+}
+// A new translation reloads the surah at the same verse; it isn't a move.
+chooseFrom('translation', 'quran-translation', choice => {
+  translation = choice;
+  if (current.chapter) openChapter(current.chapter, current.verse);
+});
+chooseFrom('reciter', 'quran-reciter', choice => {
+  reciter = choice;
+  if (player.chapter) playVerse(player.chapter, player.verse);
+});
 
 // A new script reloads the surah at the same verse; it isn't a move.
 document.querySelectorAll('input[name="script"]').forEach(input => input.addEventListener('change', () => {
@@ -1019,7 +1563,7 @@ document.querySelectorAll('input[name="script"]').forEach(input => input.addEven
   if (current.chapter) openChapter(current.chapter, current.verse);
 }));
 
-const THEME_COLORS = { light: '#f7f4ec', dark: '#14171a' };
+const THEME_COLORS = { light: '#ffffff', dark: '#1f2125' };
 function applyTheme(theme) {
   if (theme === 'system') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
@@ -1049,23 +1593,12 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if (isSafari && SCRIPTS[script].words && !document.documentElement.dataset.theme && current.chapter) openChapter(current.chapter, current.verse);
 });
 
-// Settings gets its own history entry, so the phone's back button closes it
-// instead of leaving the app.
-function closeSettings() {
-  if (history.state?.settings) history.back(); // popstate below hides it
-  else setSettingsOpen(false);
-}
-addEventListener('popstate', () => { if (!$settings.hidden) setSettingsOpen(false); });
-document.getElementById('settings-open').addEventListener('click', () => {
-  history.pushState({ settings: true }, '');
-  setSettingsOpen(true);
-});
-document.getElementById('settings-close').addEventListener('click', closeSettings);
+document.getElementById('settings-open').addEventListener('click', openSettings);
+document.getElementById('settings-close').addEventListener('click', closeSheet);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && !$settings.hidden) refreshReminders();
 });
 
-$surah.addEventListener('change', () => openChapter(+$surah.value, 1, true));
 $main.addEventListener('click', e => {
   const n = e.target.closest('[data-next]')?.dataset.next;
   if (n) openChapter(+n, 1, true);
@@ -1118,13 +1651,7 @@ $main.addEventListener('click', e => {
   if (linkedNow) showToast('Linked to your computer');
   followTimeZone();
 
-  try {
-    chapters = (await getJSON(`${API}/chapters?language=en`)).chapters;
-    $surah.innerHTML = chapters.map(c =>
-      `<option value="${+c.id}">${+c.id}. ${escapeHTML(c.name_simple)} · ${escapeHTML(c.name_arabic)}</option>`).join('');
-  } catch {
-    $surah.innerHTML = `<option value="${start.chapter}">Surah ${start.chapter}</option>`;
-  }
+  await loadChapters();
   await openChapter(start.chapter, start.verse);
   saveBookmark(!!linkedPlace);
   if (start.moved || (linkedNow && !linkedPlace)) syncPlace(true);
