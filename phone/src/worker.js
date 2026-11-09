@@ -24,6 +24,8 @@ const DEFAULT_TIMES = ['08:00', '13:00', '20:00'];
 const LATE_LIMIT_MIN = 60; // a reminder more than an hour late is skipped, not sent at an odd time
 const LINK_TTL_MS = 10 * 60 * 1000;
 const LINK_FAILURES_PER_10_MIN = 20; // wrong link codes allowed per visitor: guessing 1 of 1,000,000 stays hopeless
+const IDLE_PHONE_MS = 30 * 86_400_000; // a phone without reminders, unchanged this long, is deleted
+const ECHO_MS = 60_000; // the same verse arriving again this soon is a device repeating itself, not a new read
 const ONE_PHONE = 'A phone is already linked. Unlink it in Quran Resume, then link again.';
 const REMIND_BATCH = 5;    // phones per Worker run: a few pushes and ~25 queries, inside free-plan limits
 const REMIND_BATCHES = 40; // batches per minute: 200 reminders a minute on the free plan
@@ -242,6 +244,8 @@ async function mergePlace(env, pair, verseKey, savedAt, age) {
   if (!m || +m[1] < 1 || +m[1] > 114 || +m[2] < 1 || +m[2] > 286) throw httpError(400, 'Invalid verse.');
   if (!Number.isFinite(t) || t <= 0 || t > Date.now() + 5 * 60_000) throw httpError(400, 'Invalid time.');
   if (t <= pair.saved_at) return pair;
+  if (String(verseKey) === pair.verse_key && t - pair.saved_at < ECHO_MS) return pair;
+  await spendWrite(env);
   await env.DB.prepare('UPDATE pairs SET verse_key = ?, saved_at = ? WHERE code = ? AND saved_at < ?')
     .bind(String(verseKey), t, pair.code, t).run();
   return { ...pair, verse_key: String(verseKey), saved_at: t };
@@ -281,22 +285,30 @@ function manifestFor(pair) {
 // them. quran.com doesn't allow other sites to load its fonts, so they come
 // through here; Cloudflare's cache keeps them, so each is fetched once.
 const PAGE_FONT = /^\/qpc\/(colrv1|ot-svg\/light|ot-svg\/dark)\/p(\d{1,3})\.woff2$/;
-async function pageFont(request, url, ctx) {
+async function pageFont(request, url, env, ctx) {
   const m = PAGE_FONT.exec(url.pathname);
   if (!m || +m[2] < 1 || +m[2] > 604) return new Response('Not found', { status: 404 });
+  // Cached by path alone, so adding ?anything can't force a new fetch from quran.com.
+  const cacheKey = new Request(url.origin + url.pathname);
   const cache = caches.default;
-  const hit = await cache.match(request);
+  const hit = await cache.match(cacheKey);
   if (hit) return hit;
+  try {
+    await checkLimit(env, 'FONT_LIMIT', visitor(request));
+  } catch (err) {
+    if (err.status !== 429) throw err;
+    return new Response('Too many requests', { status: 429 });
+  }
   const res = await fetch(`https://quran.com/fonts/quran/hafs/v4/${m[1]}/woff2/p${m[2]}.woff2`);
   if (!res.ok) return new Response('Font unavailable', { status: 502 });
   const out = new Response(res.body, {
     headers: { 'content-type': 'font/woff2', 'cache-control': 'public, max-age=31536000, immutable' },
   });
-  ctx.waitUntil(cache.put(request, out.clone()));
+  ctx.waitUntil(cache.put(cacheKey, out.clone()));
   return out;
 }
 
-// Rate limits, per visitor (IP), shared across all of Cloudflare's servers:
+// Rate limits, per visitor (IP), counted separately at each Cloudflare location:
 // - linking: a 6-digit code can't be guessed (10 tries a minute against
 //   1,000,000 codes that expire in 10 minutes);
 // - creating things (pairings, push subscriptions, tests): no flooding the
@@ -311,15 +323,37 @@ const LIMITS = {
   'POST /api/pair/link-code': 'CREATE_LIMIT',
   'POST /api/subscribe': 'CREATE_LIMIT',
   'POST /api/test': 'CREATE_LIMIT',
+  'POST /api/settings': 'CREATE_LIMIT', // can create a phone's record
 };
-async function checkLimits(env, request, key) {
+// Routes that always write. Sync spends only when it really changes a place (mergePlace).
+const WRITES = new Set(['POST /api/subscribe', 'POST /api/settings', 'POST /api/ack', 'POST /api/pair', 'POST /api/pair/link-code', 'POST /api/link', 'POST /api/leave', 'POST /api/unpair']);
+
+// Who to count a request against. One IPv6 connection holds billions of addresses,
+// so those count by their first 64 bits, the part that identifies the connection.
+function visitor(request) {
   const ip = request.headers.get('cf-connecting-ip') || 'unknown';
-  for (const name of [LIMITS[key], 'API_LIMIT']) {
-    if (!name || !env[name]) continue;
-    let ok = true;
-    try { ({ success: ok } = await env[name].limit({ key: `${name}:${ip}` })); } catch {}
-    if (!ok) throw httpError(429, 'Too many tries. Wait a minute and try again.');
-  }
+  if (!ip.includes(':')) return ip;
+  const [head, tail = ''] = ip.split('::');
+  const before = head ? head.split(':') : [];
+  const after = tail ? tail.split(':') : [];
+  const groups = ip.includes('::') ? [...before, ...Array(Math.max(0, 8 - before.length - after.length)).fill('0'), ...after] : before;
+  return groups.slice(0, 4).join(':');
+}
+
+async function checkLimit(env, name, who) {
+  if (!env[name]) return;
+  let ok = true;
+  try { ({ success: ok } = await env[name].limit({ key: `${name}:${who}` })); } catch {}
+  if (!ok) throw httpError(429, 'Too many tries. Wait a minute and try again.');
+}
+
+const spendWrite = env => checkLimit(env, 'WRITE_LIMIT', 'everyone');
+
+async function checkLimits(env, request, key) {
+  const who = visitor(request);
+  if (LIMITS[key]) await checkLimit(env, LIMITS[key], who);
+  await checkLimit(env, 'API_LIMIT', who);
+  if (WRITES.has(key)) await spendWrite(env);
 }
 
 const routes = {
@@ -393,7 +427,7 @@ const routes = {
 
   // Phone: swap a 6-digit link code for the pairing code.
   'POST /api/link': async (env, { linkCode }, request) => {
-    const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+    const ip = visitor(request);
     const minute = Math.floor(Date.now() / 60_000);
     const { tries } = await env.DB.prepare('SELECT COALESCE(SUM(count), 0) AS tries FROM link_failures WHERE ip = ? AND minute > ?')
       .bind(ip, minute - 10).first();
@@ -439,7 +473,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/api/manifest') return manifestFor(url.searchParams.get('pair'));
-    if (request.method === 'GET' && url.pathname.startsWith('/qpc/')) return pageFont(request, url, ctx);
+    if (request.method === 'GET' && url.pathname.startsWith('/qpc/')) return pageFont(request, url, env, ctx);
     // Called only by the cron below, through a service binding, with a secret key.
     if (request.method === 'POST' && url.pathname === '/internal/remind') {
       if (!env.INTERNAL_KEY || request.headers.get('x-internal-key') !== env.INTERNAL_KEY) return new Response('Not found', { status: 404 });
@@ -480,11 +514,13 @@ export default {
       }));
     }
     ctx.waitUntil(Promise.allSettled(runs));
-    // Once an hour, drop pairings that no phone joined within a day, and old failed-link counts.
+    // Once an hour, drop pairings that no phone joined within a day, phones that never
+    // kept reminders on and haven't changed in a month, and old failed-link counts.
     if (new Date(event.scheduledTime).getUTCMinutes() === 0) {
       ctx.waitUntil(env.DB.batch([
         env.DB.prepare('DELETE FROM pairs WHERE phones = 0 AND created_at < ? AND (link_expires IS NULL OR link_expires < ?)')
           .bind(Date.now() - 86_400_000, Date.now()),
+        env.DB.prepare('DELETE FROM phones WHERE subscription IS NULL AND (next_at IS NULL OR next_at < ?)').bind(Date.now() - IDLE_PHONE_MS),
         env.DB.prepare('DELETE FROM link_failures WHERE minute < ?').bind(Math.floor(Date.now() / 60_000) - 60),
       ]));
     }

@@ -539,12 +539,15 @@ const API = 'https://api.quran.com/api/v4';
 const creditHTML = () => `<p class="credit">Translation: ${escapeHTML(translation.name)}<br>
   Quran text and translation via <a href="https://quran.foundation" target="_blank" rel="noopener">Quran Foundation</a> (quran.com)</p>`;
 const KEY = 'quran-bookmark';
-const DEFAULT = { chapter: 2, verse: 86 };
+const DEFAULT = { chapter: 1, verse: 1 };
 
 const $main = document.getElementById('main');
 const $surahName = document.getElementById('surah-name');
 const $pos = document.getElementById('pos');
 let $openSheet = null; // the slide-up panel showing, if any
+// Marks the history entries this run of the page added for its panels. A reload
+// keeps old entries, whose panels are gone, so those must not count as open.
+const PAGE_RUN = String(Math.random());
 
 let chapters = [];
 let current = { chapter: 0, verse: 0 };
@@ -903,7 +906,13 @@ function showSurahName(id) {
   $surahName.textContent = name ? `${id}. ${name}` : `Surah ${id}`;
 }
 
+// Only the newest request may draw: a slow surah arriving after you picked another
+// must not replace it, or its verse would be saved as your place.
+let chapterRun = 0;
+let chapterLoading = false;
 async function openChapter(id, verse, moved = false) {
+  const run = ++chapterRun;
+  chapterLoading = true;
   restoring = true;
   wordAudio.pause();
   if (player.chapter && player.chapter !== id) stopPlayer();
@@ -913,11 +922,14 @@ async function openChapter(id, verse, moved = false) {
   try {
     verses = await fetchChapterVerses(id);
   } catch {
+    if (run !== chapterRun) return;
+    chapterLoading = false;
     $main.innerHTML = `<div class="status">Couldn’t load this surah. Check your connection.
       <div class="next"><button class="btn" data-retry="${id},${verse},${moved ? 1 : 0}">Try again</button></div></div>`;
     restoring = false;
     return;
   }
+  if (run !== chapterRun) return;
   const ch = chapters.find(c => c.id === id);
   const bismillah = ch?.bismillah_pre
     ? '<div class="bismillah">بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ</div>' : '';
@@ -934,15 +946,20 @@ async function openChapter(id, verse, moved = false) {
   // Load the Arabic font before jumping: fonts.ready alone can resolve before
   // the font has even started loading, and the later swap changes line heights.
   await document.fonts.load(`30px ${SCRIPTS[script].font}`, 'بِسْمِ').catch(() => {});
+  if (run !== chapterRun) return;
   if (SCRIPTS[script].words) {
     showLoadedPages(); // a theme change on Safari switches font sets
-    if (!(await loadTajweedFonts(verses, target - 1))) {
+    const fontsLoaded = await loadTajweedFonts(verses, target - 1);
+    if (run !== chapterRun) return;
+    if (!fontsLoaded) {
+      chapterLoading = false;
       $main.innerHTML = `<div class="status">Couldn’t load this surah. Check your connection.
         <div class="next"><button class="btn" data-retry="${id},${verse},${moved ? 1 : 0}">Try again</button></div></div>`;
       restoring = false;
       return;
     }
   }
+  chapterLoading = false;
   anchorTo(target);
   setCurrent(id, target, moved);
   holdAnchor(target);
@@ -1252,7 +1269,7 @@ function showSheet($sheet) {
   $openSheet = $sheet;
   $sheet.hidden = $scrim.hidden = false;
   document.body.style.overflow = 'hidden';
-  history.pushState({ sheet: true }, '');
+  history.pushState({ sheet: PAGE_RUN }, '');
 }
 function hideSheet() {
   if (!$openSheet) return;
@@ -1262,13 +1279,12 @@ function hideSheet() {
   document.body.style.overflow = '';
 }
 function closeSheet() {
-  if (history.state?.picker) history.go(-2); // past the picker and its sheet
-  else if (history.state?.sheet) history.back(); // popstate below hides it
-  else hideSheet();
+  if (history.state?.sheet !== PAGE_RUN) hideSheet();
+  else history.go(history.state.picker ? -2 : -1); // popstate below hides it; a picker has its sheet's entry behind it
 }
 addEventListener('popstate', () => {
   hidePicker();
-  if (history.state?.sheet) return; // back from a picker to its sheet
+  if (history.state?.sheet === PAGE_RUN) return; // back from a picker to its sheet
   hideSheet();
   syncAddress(); // the entry we're back on may hold an older verse
 });
@@ -1334,7 +1350,7 @@ function showGotoTab(tab) {
 
 function goTo(chapter, verse) {
   closeSheet();
-  if (chapter !== current.chapter) return openChapter(chapter, verse, true);
+  if (chapter !== current.chapter || chapterLoading) return openChapter(chapter, verse, true);
   if (SCRIPTS[script].words) loadTajweedFonts(loadedVerses, verse - 1);
   anchorTo(verse);
   setCurrent(chapter, verse, true);
@@ -1743,7 +1759,7 @@ async function openPicker(name) {
   document.getElementById('picker-title').textContent = pickers[name].title;
   $pickerSearch.placeholder = pickers[name].search;
   $pickerSearch.value = '';
-  history.pushState({ sheet: true, picker: true }, '');
+  history.pushState({ sheet: PAGE_RUN, picker: true }, '');
   renderPicker();
   centerIn($pickerList);
   if (pickers[name].groups) return;
