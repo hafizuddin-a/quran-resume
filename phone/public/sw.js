@@ -2,12 +2,12 @@
 // (stale-while-revalidate), so surahs you've opened work offline.
 // The Quran Foundation Developer Terms cap cached Quran content at 1 week
 // (font files are exempt), so API responses are timestamped and expire.
-const SHELL = 'shell-v13';
+const SHELL = 'shell-v14';
 const QURAN = 'quran-v1';
 const FONTS = 'fonts-v1';
 const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 const STAMP = 'x-cached-at';
-const SHELL_FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
+const SHELL_FILES = ['./', 'index.html', 'manifest.webmanifest', 'manifest-dark.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
   'fonts/UthmanicHafs1Ver18.woff2', 'fonts/indopak-nastaleeq-waqf-lazim-v4.2.1.woff2'];
 
 self.addEventListener('install', e => {

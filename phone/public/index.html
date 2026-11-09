@@ -20,6 +20,8 @@
         if (code && ios && !standalone) href = 'api/manifest?pair=' + encodeURIComponent(code);
         var theme = localStorage.getItem('quran-theme');
         if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+        // Android paints its navigation bar from the manifest, so it needs the page's colour.
+        if (href === 'manifest.webmanifest' && (theme === 'dark' || (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches))) href = 'manifest-dark.webmanifest';
         // Set before the first paint, so the text doesn't change size as the app opens.
         var ar = +localStorage.getItem('quran-ar-size'), en = +localStorage.getItem('quran-en-size');
         if (ar) document.documentElement.style.setProperty('--ar-step', ar - 4);
@@ -215,8 +217,31 @@
     .goto-list small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
     .goto-empty { padding: 24px 16px; text-align: center; font-size: 14px; color: var(--muted); }
     /* Settings: reading */
-    .pick { display: grid; gap: 6px; margin-top: 18px; font-size: 14px; font-weight: 500; color: var(--muted); }
-    .pick select { width: 100%; min-height: 40px; font-size: 15px; font-weight: 400; background: var(--bg); }
+    .pick-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 56px;
+      margin-top: 12px; padding: 8px 12px; font: inherit; font-size: 15px; font-weight: 500; text-align: left; color: var(--text);
+      background: var(--bg); border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+    }
+    .pick-row small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+    .pick-row svg { flex: none; width: 18px; height: 18px; color: var(--muted); }
+    /* The picker takes over the Settings sheet. */
+    #settings.picking { height: 85vh; height: 85dvh; }
+    #settings.picking > .bar, #settings.picking > .settings-body { display: none; }
+    .picker { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .picker > .bar { flex: none; width: 100%; max-width: none; gap: 4px; padding-left: 8px; padding-right: 8px; border-bottom: 1px solid var(--line); }
+    .picker > .bar h1 { flex: 1; margin: 0 0 0 4px; font-size: 17px; font-weight: 600; }
+    .picker > .bar .act { width: 44px; height: 44px; color: var(--text); }
+    .picker-search { flex: none; padding: 12px 16px; }
+    .picker-search input {
+      width: 100%; font: inherit; font-size: 16px; color: var(--text);
+      background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px;
+    }
+    .pick-group { margin: 16px 16px 4px; font-size: 14px; font-weight: 600; }
+    .opt { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 16px; font-size: 15px; cursor: pointer; }
+    .opt input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+    .opt small { flex: none; font-size: 12px; color: var(--muted); }
+    .opt.on { color: var(--accent); font-weight: 600; background: var(--accent-soft); }
+    .opt.on small { color: inherit; font-weight: 400; }
     .size-row { margin-top: 18px; font-size: 14px; font-weight: 500; color: var(--muted); }
     .stepper { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
     .stepper button { width: 44px; height: 36px; padding: 0; font: inherit; font-size: 20px; line-height: 1; color: var(--text); background: none; border: 0; cursor: pointer; }
@@ -299,6 +324,8 @@
     <symbol id="i-open" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
     <symbol id="i-prev" viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></symbol>
     <symbol id="i-next" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><polyline points="15 6 9 12 15 18"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
   </svg>
   <header>
@@ -361,8 +388,8 @@
             <button data-size="en" data-by="1" aria-label="Larger translation">+</button>
           </div>
         </div>
-        <label class="pick">Translation <select id="translation"></select></label>
-        <label class="pick">Reciter <select id="reciter"></select></label>
+        <button class="pick-row" data-picker="translation"><span><small>Translation</small><span id="pick-translation"></span></span><svg class="i" aria-hidden="true"><use href="#i-right"/></svg></button>
+        <button class="pick-row" data-picker="reciter"><span><small>Reciter</small><span id="pick-reciter"></span></span><svg class="i" aria-hidden="true"><use href="#i-right"/></svg></button>
         <h3>Theme</h3>
         <div class="seg" role="radiogroup" aria-label="Theme">
           <label><input type="radio" name="theme" value="system"><span>Auto</span></label>
@@ -404,6 +431,15 @@
       </div>
       <p class="credit">Text, translations and recitations from <a href="https://quran.foundation" target="_blank" rel="noopener">Quran Foundation</a>.
         Fonts: KFGQPC Uthmanic Hafs and the Tajweed Mushaf by the King Fahd Complex, and IndoPak Nastaleeq by <a href="https://quranwbw.com" target="_blank" rel="noopener">QuranWBW</a>.</p>
+    </div>
+    <div class="picker" id="picker" hidden>
+      <div class="bar">
+        <button class="act" id="picker-back" aria-label="Back"><svg class="i" aria-hidden="true"><use href="#i-left"/></svg></button>
+        <h1 id="picker-title"></h1>
+        <button class="act" id="picker-close" aria-label="Close"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="picker-search"><input type="search" id="picker-search" autocomplete="off" enterkeyhint="search"></div>
+      <div class="sheet-scroll" id="picker-list"></div>
     </div>
   </section>
   <main id="main"><div class="status">Loading…</div></main>
@@ -1118,20 +1154,24 @@ function showSheet($sheet) {
 }
 function hideSheet() {
   if (!$openSheet) return;
+  hidePicker();
   $openSheet.hidden = $scrim.hidden = true;
   $openSheet = null;
   document.body.style.overflow = '';
 }
 function closeSheet() {
-  if (history.state?.sheet) history.back(); // popstate below hides it
+  if (history.state?.picker) history.go(-2); // past the picker and its sheet
+  else if (history.state?.sheet) history.back(); // popstate below hides it
   else hideSheet();
 }
 addEventListener('popstate', () => {
+  hidePicker();
+  if (history.state?.sheet) return; // back from a picker to its sheet
   hideSheet();
   syncAddress(); // the entry we're back on may hold an older verse
 });
 $scrim.addEventListener('click', closeSheet);
-addEventListener('keydown', e => { if (e.key === 'Escape' && $openSheet && !document.querySelector('dialog[open]')) closeSheet(); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && $openSheet && !document.querySelector('dialog[open]')) { if (pickerName) history.back(); else closeSheet(); } });
 
 // ---- Go to: surah list, verses of this surah, saved verses ----
 
@@ -1472,8 +1512,7 @@ function renderReading() {
   $preview.innerHTML = arabicHTML(SCRIPTS[script].sample);
   if (SCRIPTS[script].words) { loadPage(1); showLoadedPages(); }
   renderSizes();
-  fillSelect('translation', translation, []);
-  fillSelect('reciter', reciter, []);
+  renderPickRows();
 }
 
 // Text sizes, as steps from the usual size; the style sets the actual sizes.
@@ -1502,58 +1541,125 @@ document.querySelectorAll('[data-size]').forEach($btn => $btn.addEventListener('
   }
 }));
 
-// Translation and reciter lists, fetched the first time Settings opens.
-function fillSelect(id, chosen, groups) {
-  const $select = document.getElementById(id);
-  if (!groups.length && $select.options.length > 1) { $select.value = chosen.id; return; }
-  $select.innerHTML = '';
-  for (const [label, items] of groups) {
-    const parent = label ? $select.appendChild(Object.assign(document.createElement('optgroup'), { label })) : $select;
-    for (const item of items) parent.append(new Option(item.name, item.id));
-  }
-  if (!groups.some(([, items]) => items.some(i => i.id === chosen.id))) $select.prepend(new Option(chosen.name, chosen.id));
-  $select.value = chosen.id;
+// Translation and reciter pickers. The lists are fetched the first time Settings opens.
+const pickers = {
+  translation: {
+    title: 'Translation', search: 'Search translations', key: 'quran-translation', groups: null,
+    chosen: () => translation,
+    apply(choice) { // reloads the surah at the same verse; it isn't a move
+      translation = choice;
+      if (current.chapter) openChapter(current.chapter, current.verse);
+    },
+  },
+  reciter: {
+    title: 'Reciter', search: 'Search reciters', key: 'quran-reciter', groups: null,
+    chosen: () => reciter,
+    apply(choice) {
+      reciter = choice;
+      if (player.chapter) playVerse(player.chapter, player.verse);
+    },
+  },
+};
+let pickerName = null; // the picker showing, if any
+let pickersFailed = false;
+let settingsScroll = 0;
+const $picker = document.getElementById('picker');
+const $pickerList = document.getElementById('picker-list');
+const $pickerSearch = document.getElementById('picker-search');
+
+function renderPickRows() {
+  for (const name of Object.keys(pickers)) document.getElementById(`pick-${name}`).textContent = pickers[name].chosen().name;
 }
 
-let pickersLoaded = false;
-async function loadPickers() {
-  if (pickersLoaded) return;
-  try {
-    const [{ translations }, { recitations }] = await Promise.all([
-      getJSON(`${API}/resources/translations`), getJSON(`${API}/resources/recitations`),
-    ]);
+let pickersLoading = null;
+function loadPickers() {
+  if (pickers.translation.groups) return Promise.resolve();
+  pickersLoading ||= Promise.all([
+    getJSON(`${API}/resources/translations`), getJSON(`${API}/resources/recitations`),
+  ]).then(([{ translations }, { recitations }]) => {
     const language = t => { const l = t.language_name.split(',')[0]; return l[0].toUpperCase() + l.slice(1).toLowerCase(); };
     const byLanguage = new Map();
     for (const t of translations) {
       const l = language(t);
       if (!byLanguage.has(l)) byLanguage.set(l, []);
-      byLanguage.get(l).push({ id: t.id, name: t.translated_name?.name || t.name });
+      byLanguage.get(l).push({ id: t.id, name: t.translated_name?.name || t.name, also: t.author_name || '' });
     }
-    const groups = [...byLanguage].sort(([a], [b]) => (b === 'English') - (a === 'English') || a.localeCompare(b));
-    fillSelect('translation', translation, groups);
-    fillSelect('reciter', reciter, [['', recitations.map(r => ({
-      id: r.id, name: `${r.reciter_name.replace(/`/g, '‘')}${r.style ? ` (${r.style})` : ''}`,
-    }))]]);
-    pickersLoaded = true;
-  } catch {} // offline: the current choices stay; tried again next time
+    pickers.translation.groups = [...byLanguage].sort(([a], [b]) => (b === 'English') - (a === 'English') || a.localeCompare(b));
+    pickers.reciter.groups = [['', recitations.map(r => {
+      const name = r.reciter_name.replace(/`/g, '‘');
+      return { id: r.id, name, tag: r.style || 'Murattal', saved: r.style ? `${name} (${r.style})` : name };
+    }).sort((a, b) => a.name.localeCompare(b.name) || a.tag.localeCompare(b.tag))]];
+    pickersFailed = false;
+  }).catch(() => { pickersFailed = true; }) // offline: the current choice stays; tried again next time
+    .finally(() => { pickersLoading = null; });
+  return pickersLoading;
 }
-function chooseFrom(id, key, apply) {
-  const $select = document.getElementById(id);
-  $select.addEventListener('change', () => {
-    const choice = { id: +$select.value, name: $select.selectedOptions[0].textContent };
-    try { localStorage.setItem(key, JSON.stringify(choice)); } catch {}
-    apply(choice);
-  });
+
+function renderPicker() {
+  const picker = pickers[pickerName];
+  const chosen = picker.chosen().id;
+  const q = $pickerSearch.value.trim().toLowerCase();
+  const groups = picker.groups || [['', [picker.chosen()]]];
+  let html = '';
+  for (const [label, items] of groups) {
+    const shown = items.filter(i => `${label} ${i.name} ${i.also || ''} ${i.tag || ''}`.toLowerCase().includes(q));
+    if (!shown.length) continue;
+    if (label) html += `<h2 class="pick-group">${escapeHTML(label)}</h2>`;
+    for (const i of shown) {
+      html += `<label class="opt${i.id === chosen ? ' on' : ''}"><input type="radio" name="pick" value="${i.id}"${i.id === chosen ? ' checked' : ''}>
+        <span dir="auto">${escapeHTML(i.name)}</span>${i.tag ? `<small>${escapeHTML(i.tag)}</small>` : ''}</label>`;
+    }
+  }
+  if (!html) html = '<p class="goto-empty">No match</p>';
+  if (!picker.groups && pickersFailed) html += '<p class="goto-empty">Can’t load the list. Check your connection.</p>';
+  $pickerList.innerHTML = html;
 }
-// A new translation reloads the surah at the same verse; it isn't a move.
-chooseFrom('translation', 'quran-translation', choice => {
-  translation = choice;
-  if (current.chapter) openChapter(current.chapter, current.verse);
+
+async function openPicker(name) {
+  const $body = $settings.querySelector('.settings-body');
+  settingsScroll = $body.scrollTop;
+  pickerName = name;
+  $settings.classList.add('picking');
+  $picker.hidden = false;
+  document.getElementById('picker-title').textContent = pickers[name].title;
+  $pickerSearch.placeholder = pickers[name].search;
+  $pickerSearch.value = '';
+  history.pushState({ sheet: true, picker: true }, '');
+  renderPicker();
+  centerIn($pickerList);
+  if (pickers[name].groups) return;
+  await loadPickers();
+  if (pickerName !== name) return;
+  renderPicker();
+  centerIn($pickerList);
+}
+function hidePicker() {
+  if (!pickerName) return;
+  pickerName = null;
+  $picker.hidden = true;
+  $settings.classList.remove('picking');
+  $settings.querySelector('.settings-body').scrollTop = settingsScroll; // it was out of the page, which resets it
+  renderPickRows();
+}
+document.querySelectorAll('[data-picker]').forEach($row => $row.addEventListener('click', () => openPicker($row.dataset.picker)));
+$pickerSearch.addEventListener('input', () => {
+  renderPicker();
+  $pickerList.scrollTop = 0;
 });
-chooseFrom('reciter', 'quran-reciter', choice => {
-  reciter = choice;
-  if (player.chapter) playVerse(player.chapter, player.verse);
+$pickerList.addEventListener('click', e => {
+  if (!e.target.matches('input')) return; // tapping the label clicks its radio too
+  const picker = pickers[pickerName];
+  const id = +e.target.value;
+  if (id !== picker.chosen().id) {
+    const item = picker.groups.flatMap(([, items]) => items).find(i => i.id === id);
+    const choice = { id, name: item.saved || item.name };
+    try { localStorage.setItem(picker.key, JSON.stringify(choice)); } catch {}
+    picker.apply(choice);
+  }
+  history.back();
 });
+document.getElementById('picker-back').addEventListener('click', () => history.back());
+document.getElementById('picker-close').addEventListener('click', closeSheet);
 
 // A new script reloads the surah at the same verse; it isn't a move.
 document.querySelectorAll('input[name="script"]').forEach(input => input.addEventListener('change', () => {
