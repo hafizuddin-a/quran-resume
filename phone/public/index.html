@@ -472,8 +472,16 @@
         </div>
         <p class="msg" id="link-msg"></p>
       </div>
-      <p class="credit">Quran text, translations, tafsir, word meanings and recitations from <a href="https://quran.foundation" target="_blank" rel="noopener">Quran Foundation</a>.
-        Fonts: KFGQPC Uthmanic Hafs and the Tajweed Mushaf by the King Fahd Complex, and IndoPak Nastaleeq by <a href="https://quranwbw.com" target="_blank" rel="noopener">QuranWBW</a>.</p>
+      <div class="card">
+        <h2>Your data</h2>
+        <div class="row">
+          <p class="hint">Delete what this app keeps, here and on the server.</p>
+          <button class="btn" id="forget-open">Delete my data</button>
+        </div>
+      </div>
+      <p class="credit">Quran data provided by <a href="https://quran.foundation" target="_blank" rel="noopener">Quran.Foundation</a>. Translations, tafsir and recitations are credited by name where they appear.
+        Fonts: KFGQPC Uthmanic Hafs and the Tajweed Mushaf by the King Fahd Complex, via Quran Foundation, and IndoPak Nastaleeq by <a href="https://quranwbw.com" target="_blank" rel="noopener">QuranWBW</a>.</p>
+      <p class="credit"><a href="privacy" target="_blank" rel="noopener">Privacy</a> · <a href="terms" target="_blank" rel="noopener">Terms</a></p>
     </div>
   </section>
 
@@ -532,6 +540,16 @@
     </div>
   </dialog>
 
+  <dialog id="forget" aria-labelledby="forget-title">
+    <h2 id="forget-title">Delete your data?</h2>
+    <p>This deletes your reminders and computer link from the server, and your place, saved verses and settings on this phone.</p>
+    <p class="msg" id="forget-msg"></p>
+    <div class="actions">
+      <button class="btn" id="forget-no">Cancel</button>
+      <button class="btn primary" id="forget-yes">Delete</button>
+    </div>
+  </dialog>
+
   <dialog id="link-ask" aria-labelledby="link-ask-title">
     <h2 id="link-ask-title">Link this computer?</h2>
     <p id="link-ask-text"></p>
@@ -553,8 +571,8 @@
 <script>
 const API = 'https://api.quran.com/api/v4';
 // Attribution required by the Quran Foundation Developer Terms.
-const creditHTML = () => `<p class="credit">Translation: ${escapeHTML(translation.name)}<br>
-  Quran text and translation via <a href="https://quran.foundation" target="_blank" rel="noopener">Quran Foundation</a> (quran.com)</p>`;
+const creditHTML = () => `<p class="credit">Translation: ${escapeHTML(translation.name)} · Recitation: ${escapeHTML(reciter.name)}<br>
+  Quran data provided by <a href="https://quran.foundation" target="_blank" rel="noopener">Quran.Foundation</a></p>`;
 const KEY = 'quran-bookmark';
 const DEFAULT = { chapter: 1, verse: 1 };
 
@@ -826,8 +844,9 @@ document.body.classList.toggle('wbw-translit', showTransliteration);
 const WORD_FIELD = { uthmani: 'text_qpc_hafs', indopak: 'text_indopak', tajweed: 'code_v2,v2_page' };
 
 // The page fonts come in colour formats: COLRv1 for Chrome, and SVG (one set for
-// light, one for dark) for Safari, which doesn't draw COLRv1. They're served
-// through this app's server, which caches them.
+// light, one for dark) for Safari, which doesn't draw COLRv1. They load from the
+// Quran Foundation's font address.
+const FONT_BASE = 'https://verses.quran.foundation/fonts/quran/hafs/v4';
 const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|Chromium|Android/.test(navigator.userAgent);
 const darkNow = () => document.documentElement.dataset.theme === 'dark'
   || (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
@@ -843,7 +862,7 @@ const pageFamily = page => `qpc-${qpcVariant().replace('/', '-')}-p${page}`;
 function loadPage(page) {
   const family = pageFamily(page);
   if (!pageFonts.has(family)) {
-    const face = new FontFace(family, `url(qpc/${qpcVariant()}/p${page}.woff2)`, { display: 'block' });
+    const face = new FontFace(family, `url(${FONT_BASE}/${qpcVariant()}/woff2/p${page}.woff2)`, { display: 'block' });
     document.fonts.add(face);
     pageFonts.set(family, face.load().then(() => { loadedFamilies.add(family); showLoadedPages(); return true; }, () => false));
   }
@@ -1657,6 +1676,30 @@ document.getElementById('link-form').addEventListener('submit', async e => {
   }
 });
 
+// Delete my data: the server's copy first, then everything kept on this phone.
+const $forget = document.getElementById('forget');
+document.getElementById('forget-open').addEventListener('click', () => {
+  document.getElementById('forget-msg').textContent = '';
+  $forget.showModal();
+});
+document.getElementById('forget-no').addEventListener('click', () => $forget.close());
+document.getElementById('forget-yes').addEventListener('click', async () => {
+  const $yes = document.getElementById('forget-yes');
+  $yes.disabled = true;
+  let phone = null;
+  try { phone = localStorage.getItem(PHONE_KEY); } catch {}
+  try {
+    await api('forget', { ...(phone ? { phone } : {}), ...(pairCode() ? { code: pairCode() } : {}) });
+  } catch (err) {
+    document.getElementById('forget-msg').textContent = err.message; // nothing deleted yet: try again
+    $yes.disabled = false;
+    return;
+  }
+  try { await (await navigator.serviceWorker?.getRegistration())?.pushManager?.getSubscription().then(s => s?.unsubscribe()); } catch {}
+  try { localStorage.clear(); sessionStorage.clear(); } catch {}
+  location.replace('./');
+});
+
 document.getElementById('link-forget').addEventListener('click', () => {
   api('leave', { code: pairCode() }).catch(() => {});
   forgetPair();
@@ -1727,6 +1770,8 @@ const pickers = {
     chosen: () => reciter,
     apply(choice) {
       reciter = choice;
+      $main.querySelector('.credit')?.insertAdjacentHTML('afterend', creditHTML());
+      $main.querySelector('.credit')?.remove(); // the surah's credit names the new reciter
       if (!player.chapter) return;
       if (player.loading || !audio.paused) return playVerse(player.chapter, player.verse);
       player.newReciter = true; // paused stays paused; play picks up the new voice

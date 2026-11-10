@@ -38,12 +38,6 @@ name = "API_LIMIT"
 namespace_id = "1003"
 simple = { limit = 120, period = 60 }
 
-# Tajweed fonts not yet in Cloudflare's cache, per visitor: each one is fetched from quran.com.
-[[ratelimits]]
-name = "FONT_LIMIT"
-namespace_id = "1004"
-simple = { limit = 200, period = 60 }
-
 # Database writes by everyone together (each Cloudflare location counts its own). The
 # free plan allows 100,000 written rows a day, so one flood can't use them all and stop
 # reminders. Raise this as real use grows: real sync moves are the main use of it.

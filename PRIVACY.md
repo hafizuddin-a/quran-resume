@@ -1,74 +1,124 @@
 # Privacy Policy
 
-**Quran Resume** does not collect, sell, or share any personal data. It sends nothing over the
-network unless you turn on the optional phone link, described below.
+**Quran Resume** · Effective 10 November 2026
 
-## What the extension stores
+Also at https://quran-resume.hello-hafiz.workers.dev/privacy
 
-The only thing it saves is the **last verse you were reading** (for example
-`2:9`) and the time it was saved. This is kept in your browser's local extension
-storage (`chrome.storage.local`) on your own device. The extension itself never
-sends it anywhere. If "Sync my place" is on (the default) and you use Chrome sync,
-Chrome also keeps a copy in `chrome.storage.sync`, which Chrome syncs to your other
-signed-in browsers through your Google account. Turn this off in the toolbar menu.
+## 1. About this policy
 
-## Phone link (optional, off by default)
+Quran Resume is a free Chrome extension and phone web app that keeps your place in the Quran. It is
+made by Hafiz, an independent developer. It uses the **Quran Foundation APIs** (api.quran.com) for
+Quran text, translations, tafsir, word meanings, fonts and recitations. Quran.com and QuranReflect
+are services of the Quran Foundation. Quran Resume is not an official Quran Foundation, Quran.com or
+QuranReflect app, and it does not use Quran.com or QuranReflect accounts.
 
-If you choose **Link your phone** in the toolbar menu, the extension starts using the Quran Resume
-server (quran-resume.hello-hafiz.workers.dev, run on Cloudflare). It needs no extra browser permission
-for this. While the link is on:
+This policy covers the extension, the phone app at quran-resume.hello-hafiz.workers.dev, and the
+small server they share.
 
-- It sends your last verse, the time it was saved, and a random pairing code to that server, and
-  reads back the newest place saved by your linked phone. Nothing else is sent: no account, name,
-  email, browsing history or other tabs.
-- The pairing code is created by the server and kept in the extension's local storage. It is not
-  tied to your identity. A 6-digit code shown in the menu lets a phone join; it works once, for 10
-  minutes.
-- **Unlink** in the toolbar menu deletes your place and pairing from the server. A pairing that no
-  phone joins is deleted automatically after a day, and any pairing with no new place for 6 months
-  is deleted too. Removing the extension stops all sync but leaves the server copy until then, so
-  unlink first if you want it gone sooner.
-- To stop abuse (such as guessing link codes), the server counts wrong link codes per internet (IP)
-  address. Those counts are kept for at most an hour and are not linked to your place.
+## 2. What we collect and why
 
-## The Quran Resume phone app
+There are no accounts. We never ask for your name, email or phone number, and there are no
+analytics, ads or tracking.
 
-The phone app (quran-resume.hello-hafiz.workers.dev) keeps your place and reading settings on the
-phone itself. It loads Quran text, translations, tafsir and word meanings from the Quran Foundation (api.quran.com) and fonts from Google
-Fonts and the same server. Verses you save stay on the phone. If you play a recitation, the audio
-comes directly from the Quran Foundation's audio hosts (verses.quran.com, mirrors.quranicaudio.com). If you turn on daily reminders, the server stores a random id for the
-phone, its push address (from the browser's push service), your three reminder times, your time zone
-and which reminders were sent or acknowledged today. Turning reminders off stops them and deletes the push
-address from the server at once. Your times and time zone stay so that turning reminders back on
-keeps them, and are deleted after a month with reminders off. The phone link works as described above.
+| Where | What | Why |
+| --- | --- | --- |
+| Your computer (extension) | Your last verse and when you saved it, your menu settings, the date it last opened the Quran after your computer woke | To open quran.com at your place. If "Sync my place" is on and you use Chrome sync, Chrome copies your last verse to your other signed-in computers. |
+| Your phone (phone app) | Your place, saved verses, reading settings, and your chosen translation, reciter and tafsir | To show the Quran the way you set it up. These stay on your phone. |
+| Our server, only if you link a phone | A random code for your computer and another for your phone, your last verse, and when it was saved | To keep your place in sync between your computer and phone. |
+| Our server, only if you turn on daily reminders | A random id for your phone, its push address from the browser's push service, your three reminder times, your time zone, and which reminders were sent or confirmed today | To send up to 3 reminders a day and stop them once you confirm you've read. |
+| Our server, to stop abuse | Wrong link codes, counted per network address (for IPv6, only the first half of the address) | To stop anyone guessing link codes. Counts are deleted within an hour and aren't linked to your place. |
 
-## What the extension accesses
+Quran text and its details come from the Quran Foundation APIs without us sending them any of your
+data.
 
-- **quran.com pages:** a content script reads which verse is near the top of the
-  screen so it can remember your place. It does not read your account, your
-  notes, bookmarks, or anything else on the page.
-- **Unlock and sleep detection:** it notices when the screen is unlocked or the
-  computer wakes from sleep, so it can bring the Quran tab forward once a day. Only
-  the date of the last time it did so is stored. Nothing is sent anywhere.
-- **Browser tabs:** on startup it looks for an open quran.com tab and opens or
-  focuses one. It does not read or record any other tab.
+### Sensitive religious information
 
-## What the extension does not do
+Your reading place, and confirming "I have read the Quran today", relate to religious practice, which
+privacy laws such as the GDPR treat as sensitive personal data needing stronger protection. This data
+leaves your device only with your explicit, opt-in consent, given by a clear action of your own:
 
-- No analytics, tracking, advertising, or telemetry.
-- No network requests of its own unless you turn on the phone link, and no remote code.
-- No accounts or sign-in.
+- **Phone link:** you press **Link your phone** in the extension, then confirm **Link this computer?**
+  on your phone.
+- **Daily reminders:** you turn on **Daily reminders** and allow notifications.
 
-## Your control
+Both are off until you choose them, neither is needed to read, and each is separate from anything
+else you agree to. You can turn either off at any time.
 
-Remove the extension at any time and its stored data is deleted with it.
+### What we never do
 
-## Contact
+- We never use your data to build advertising profiles.
+- We never sell, rent, mine or repurpose your data beyond the features above.
+- We never use your data or anything you do in the app to train AI models.
 
-Questions: open an issue on the project's GitHub repository.
+## 3. Who else handles data
 
-The settings (the on/off switch for the once-a-day return, and whether to show its prompt) are on the extension's options page.
+| Service | What it does | Privacy policy |
+| --- | --- | --- |
+| Cloudflare | Hosts our server and database | [cloudflare.com/privacypolicy](https://www.cloudflare.com/privacypolicy/) |
+| Push services (Google, Apple, Mozilla or Microsoft, depending on your browser) | Deliver reminders to your phone. Each reminder is encrypted end to end, so they can't read it. | [Google](https://policies.google.com/privacy), [Apple](https://www.apple.com/legal/privacy/), [Mozilla](https://www.mozilla.org/privacy/), [Microsoft](https://www.microsoft.com/privacy/privacystatement) |
+| Quran Foundation | The phone app loads Quran text, translations, tafsir, word meanings, fonts and recitations directly from its servers, which see your network address as any website would | [quran.com/privacy](https://quran.com/privacy) |
+| Google Fonts | Serves the phone app's interface font | [policies.google.com/privacy](https://policies.google.com/privacy) |
+| Chrome sync (Google) | Copies your last verse between your computers, if you use it | [policies.google.com/privacy](https://policies.google.com/privacy) |
 
-The toolbar menu has a "Talk to the developer" link that opens the developer's Instagram page in a new tab. It is a plain link; the extension sends nothing.
+Cloudflare processes our server's data under its
+[Customer Data Processing Addendum](https://www.cloudflare.com/cloudflare-customer-dpa/). The other
+services act under their own terms when they deliver messages, content or fonts. We share your data
+with no one else, and no one receives Quran text from us to reuse.
 
-_Last updated: 9 November 2026 (version 1.6.5)
+## 4. How we protect it
+
+- **In transit:** every connection uses HTTPS (TLS).
+- **At rest:** our database is encrypted at rest with AES-256 by Cloudflare.
+- **Access:** only the developer can reach the server and its data.
+- **Secrets:** server keys are replaced at least once a year, and at once if we suspect one has been
+  exposed.
+- **Incidents:** we start responding to a security incident within 24 hours of learning of it, and
+  report any that involve the Quran Foundation APIs to the Quran Foundation within 24 hours, as its
+  developer requirements ask (Security Rule 6.9).
+
+## 5. Your choices and rights
+
+- **No account to revoke:** Quran Resume doesn't sign you in to Quran.com or the Quran Foundation, so
+  there are no OAuth tokens to revoke.
+- **Delete my data (phone app):** Settings → **Delete my data** deletes your reminder record and phone
+  link from our server, and clears everything the app kept on your phone.
+- **Unlink (extension):** **Unlink** in the toolbar menu deletes your place and pairing from our
+  server. Removing the extension deletes everything it kept on your computer.
+- **Reminders off:** turning reminders off deletes your push address from our server at once.
+- **Access and correction:** everything we keep is shown in the app or the extension menu. Email us
+  for a copy of what our server holds about you, or to correct it.
+
+## 6. How long we keep it
+
+Data stays only while you use the feature it's for:
+
+- **Phone link:** until you unlink. A pairing no phone joins is deleted after a day, and one with no
+  new place for 6 months is deleted.
+- **Push address:** until you turn reminders off.
+- **Reminder times and time zone:** deleted a month after reminders are turned off.
+- **Wrong link code counts:** deleted within an hour.
+
+When you ask us to delete your data, it is deleted at once, and always within 30 days. Cloudflare
+keeps a recovery history of our database for up to 7 days, after which deleted data is gone for good.
+
+## 7. Children
+
+Quran Resume is not directed at children under 13. There is no sign-up and we don't collect names or
+ages, so we can't tell who is using it. A parent who wants a child's data removed can use **Delete my
+data**, or email us.
+
+## 8. International transfers
+
+Our server runs on Cloudflare's worldwide network, so your data may be processed outside your
+country. For these transfers we rely on Cloudflare's Data Processing Addendum, which includes the
+EU's Standard Contractual Clauses, to protect your data to GDPR standards. We are responsible for
+following the data protection laws that apply where our users are.
+
+## 9. Changes
+
+When this policy changes, we update the date at the top. Significant changes are also noted in the
+extension's release notes and shown in the phone app.
+
+## 10. Contact
+
+Email **hafizddn.a@gmail.com** with any privacy question or request. We reply within 30 days.

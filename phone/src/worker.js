@@ -238,6 +238,14 @@ async function getPair(env, code) {
 }
 const COMPUTER_ONLY = 'Only Quran Resume on your computer can do this.';
 
+async function leavePair(env, pair) {
+  if (pair.role === 'phone') {
+    await env.DB.prepare('UPDATE pairs SET phones = 0, phone_code = NULL WHERE code = ?').bind(pair.code).run();
+  } else { // a phone linked before phones had their own code holds the computer's
+    await env.DB.prepare('UPDATE pairs SET phones = MAX(phones - 1, 0) WHERE code = ?').bind(pair.code).run();
+  }
+}
+
 const VERSE_KEY = /^(\d{1,3}):(\d{1,3})$/;
 const VERSE_COUNTS = [7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6]; // verses in each surah
 
@@ -289,31 +297,13 @@ function manifestFor(pair) {
   }), { headers: { 'content-type': 'application/manifest+json', 'cache-control': 'no-store' } });
 }
 
-// Tajweed Mushaf page fonts (King Fahd Complex, QPC V4), as quran.com serves
-// them. quran.com doesn't allow other sites to load its fonts, so they come
-// through here; Cloudflare's cache keeps them, so each is fetched once.
+// Tajweed Mushaf page fonts now load straight from the Quran Foundation's font
+// address. Copies of the app from before that still ask here, so they're sent on.
 const PAGE_FONT = /^\/qpc\/(colrv1|ot-svg\/light|ot-svg\/dark)\/p(\d{1,3})\.woff2$/;
-async function pageFont(request, url, env, ctx) {
+function pageFont(url) {
   const m = PAGE_FONT.exec(url.pathname);
   if (!m || +m[2] < 1 || +m[2] > 604) return new Response('Not found', { status: 404 });
-  // Cached by path alone, so adding ?anything can't force a new fetch from quran.com.
-  const cacheKey = new Request(url.origin + url.pathname);
-  const cache = caches.default;
-  const hit = await cache.match(cacheKey);
-  if (hit) return hit;
-  try {
-    await checkLimit(env, 'FONT_LIMIT', visitor(request));
-  } catch (err) {
-    if (err.status !== 429) throw err;
-    return new Response('Too many requests', { status: 429 });
-  }
-  const res = await fetch(`https://quran.com/fonts/quran/hafs/v4/${m[1]}/woff2/p${m[2]}.woff2`);
-  if (!res.ok) return new Response('Font unavailable', { status: 502 });
-  const out = new Response(res.body, {
-    headers: { 'content-type': 'font/woff2', 'cache-control': 'public, max-age=31536000, immutable' },
-  });
-  ctx.waitUntil(cache.put(cacheKey, out.clone()));
-  return out;
+  return Response.redirect(`https://verses.quran.foundation/fonts/quran/hafs/v4/${m[1]}/woff2/p${m[2]}.woff2`, 301);
 }
 
 // Rate limits, per visitor (IP), counted separately at each Cloudflare location:
@@ -335,7 +325,7 @@ const LIMITS = {
   'POST /api/phone-code': 'CREATE_LIMIT',
 };
 // Routes that always write. Sync spends only when it really changes a place (mergePlace).
-const WRITES = new Set(['POST /api/subscribe', 'POST /api/settings', 'POST /api/ack', 'POST /api/pair', 'POST /api/pair/link-code', 'POST /api/link', 'POST /api/leave', 'POST /api/unpair', 'POST /api/phone-code']);
+const WRITES = new Set(['POST /api/subscribe', 'POST /api/settings', 'POST /api/ack', 'POST /api/pair', 'POST /api/pair/link-code', 'POST /api/link', 'POST /api/leave', 'POST /api/unpair', 'POST /api/phone-code', 'POST /api/forget']);
 
 // Who to count a request against. One IPv6 connection holds billions of addresses,
 // so those count by their first 64 bits, the part that identifies the connection.
@@ -467,11 +457,22 @@ const routes = {
 
   // Phone: unlink this phone, so the extension stops showing it as linked.
   'POST /api/leave': async (env, { code }) => {
-    const pair = await getPair(env, code);
-    if (pair.role === 'phone') {
-      await env.DB.prepare('UPDATE pairs SET phones = 0, phone_code = NULL WHERE code = ?').bind(pair.code).run();
-    } else { // a phone linked before phones had their own code holds the computer's
-      await env.DB.prepare('UPDATE pairs SET phones = MAX(phones - 1, 0) WHERE code = ?').bind(pair.code).run();
+    await leavePair(env, await getPair(env, code));
+    return { ok: true };
+  },
+
+  // Phone: Delete my data. Its reminder record goes, and it leaves its pairing.
+  'POST /api/forget': async (env, { phone, code }) => {
+    if (phone !== undefined) {
+      if (typeof phone !== 'string' || !/^[\w-]{16,64}$/.test(phone)) throw httpError(400, 'Missing phone id.');
+      await env.DB.prepare('DELETE FROM phones WHERE id = ?').bind(phone).run();
+    }
+    if (code) {
+      try {
+        await leavePair(env, await getPair(env, code));
+      } catch (err) {
+        if (err.status !== 404) throw err; // already turned off
+      }
     }
     return { ok: true };
   },
@@ -503,7 +504,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/api/manifest') return manifestFor(url.searchParams.get('pair'));
-    if (request.method === 'GET' && url.pathname.startsWith('/qpc/')) return pageFont(request, url, env, ctx);
+    if (request.method === 'GET' && url.pathname.startsWith('/qpc/')) return pageFont(url);
     // Called only by the cron below, through a service binding, with a secret key.
     if (request.method === 'POST' && url.pathname === '/internal/remind') {
       if (!env.INTERNAL_KEY || request.headers.get('x-internal-key') !== env.INTERNAL_KEY) return new Response('Not found', { status: 404 });
