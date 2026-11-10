@@ -613,7 +613,8 @@ function saveBookmark(force = false) {
 
 // The address always shows the current verse (a reload opens there).
 function syncAddress() {
-  if (current.chapter) history.replaceState(history.state, '', `?chapter=${current.chapter}&verse=${current.verse}${carryPair()}`);
+  carryPair();
+  if (current.chapter) history.replaceState(history.state, '', `?chapter=${current.chapter}&verse=${current.verse}`);
 }
 
 function setCurrent(chapter, verse, moved = false) {
@@ -649,20 +650,36 @@ function forgetPair() {
     const code = pairCode();
     if (code) localStorage.setItem(DROPPED_KEY, code);
     localStorage.removeItem(PAIR_KEY);
+    localStorage.removeItem(OWN_CODE_KEY);
   } catch {}
+}
+
+// Phones linked before phones had a code of their own hold the computer's;
+// they swap to one once. Unlinking then turns off every copy of it.
+const OWN_CODE_KEY = 'quran-pair-own';
+async function useOwnCode() {
+  const code = pairCode();
+  try { if (!code || localStorage.getItem(OWN_CODE_KEY)) return; } catch { return; }
+  try {
+    const out = await api('phone-code', { code });
+    localStorage.setItem(PAIR_KEY, out.code);
+    localStorage.setItem(OWN_CODE_KEY, '1');
+  } catch (err) {
+    if (err.status === 404) forgetPair(); // turned off from the computer
+  }
 }
 function droppedPair() {
   try { return localStorage.getItem(DROPPED_KEY); } catch { return null; }
 }
 
 // An iPhone Home Screen app doesn't share Safari's storage, so while linked in
-// Safari the pairing rides along in the address and the app manifest's start
-// address. Add to Home Screen then opens an app that links itself.
+// Safari the pairing rides along in the app manifest's start address (never the
+// page's own address, which could be copied or shared). Add to Home Screen then
+// opens an app that links itself.
 function carryPair() {
   const code = pairCode();
-  if (!isIOS || isStandalone || !code) return '';
+  if (!isIOS || isStandalone || !code) return;
   document.querySelector('link[rel="manifest"]').href = `api/manifest?pair=${encodeURIComponent(code)}`;
-  return `&pair=${encodeURIComponent(code)}`;
 }
 
 async function syncPlace(send) {
@@ -763,7 +780,7 @@ function showToast(text) {
 async function linkWithCode(linkCode) {
   const before = pairCode();
   const out = await api('link', { linkCode });
-  try { localStorage.setItem(PAIR_KEY, out.code); } catch {}
+  try { localStorage.setItem(PAIR_KEY, out.code); localStorage.setItem(OWN_CODE_KEY, '1'); } catch {}
   // Moving to another computer: the old one stops showing this phone as linked.
   if (before && before !== out.code) api('leave', { code: before }).catch(() => {});
   return parsePlace(out.place);
@@ -2011,6 +2028,7 @@ function askToLink() {
     linkedPlace = parsePlace(await syncPlace(false));
     linkedNow = !!pairCode(); // a turned-off pairing is forgotten again
   }
+  await withTimeout(useOwnCode(), 2500);
   if (linkCode) {
     if (await askToLink()) {
       try {

@@ -6,8 +6,10 @@ CREATE TABLE IF NOT EXISTS pairs (
   phones INTEGER NOT NULL DEFAULT 0,
   link_code TEXT UNIQUE,            -- 6 digits, works once, for 10 minutes
   link_expires INTEGER,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  phone_code TEXT                   -- the linked phone's own secret; replaced when it unlinks
 );
+CREATE UNIQUE INDEX IF NOT EXISTS pairs_phone_code ON pairs (phone_code);
 
 -- Reminders: one row per phone.
 CREATE TABLE IF NOT EXISTS phones (
